@@ -2,7 +2,6 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request))
 })
 
-const PASSWORD = "creeper";
 
 addEventListener('scheduled', event => {
   event.waitUntil(handleScheduled(event.scheduledTime))
