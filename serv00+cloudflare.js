@@ -2,6 +2,7 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request))
 })
 
+const PASSWORD = "creeper";
 
 addEventListener('scheduled', event => {
   event.waitUntil(handleScheduled(event.scheduledTime))
@@ -191,6 +192,9 @@ function getHtmlContent() {
       width: auto;
       min-width: 100px;
       text-align: center;
+      max-width: 200px;
+      height: auto;  /* 明确设置按钮的高度 */
+      cursor: move;  /* 显示拖动光标 */
     }
 
     /* 默认深色模式 */
@@ -612,7 +616,38 @@ tbody tr:hover.rainbow {
 
       // 页面加载时检查认证状态
       document.addEventListener('DOMContentLoaded', checkAuth);
+      // 添加拖动功能
+      const themeToggleButton = document.getElementById('themeToggle');
+      let isDragging = false;
+    
+      themeToggleButton.addEventListener('mousedown', function(event) {
+        isDragging = true;
+        startX = event.clientX;
+        startY = event.clientY;
+        const rect = themeToggleButton.getBoundingClientRect();
+        initialX = rect.left;
+        initialY = rect.top;
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+    
+      function onMouseMove(event) {
+        if (isDragging) {
+          const offsetX = event.clientX - startX;
+          const offsetY = event.clientY - startY;
+          themeToggleButton.style.left = (initialX + offsetX)+'px';
+          themeToggleButton.style.top = (initialY + offsetY)+'px';
+          themeToggleButton.style.position = 'fixed';
+        }
+      }
+    
+      function onMouseUp() {
+        isDragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      }
     </script>
+    
   </body>
   <footer>
   <font color=#FB09F4> </font><font color=#F712E9>p</font><font color=#F31BDE>o</font><font color=#EF24D3>w</font><font color=#EB2DC8>e</font><font color=#E736BD>r</font><font color=#E33FB2>e</font><font color=#DF48A7>d</font><font color=#DB519C> </font><font color=#D75A91>b</font><font color=#D36386>y</font><font color=#CF6C7B> </font><font color=#CB7570>c</font><font color=#C77E65>l</font><font color=#C3875A>o</font><font color=#BF904F>u</font><font color=#BB9944>d</font><font color=#B7A239>f</font><font color=#B3AB2E>l</font><font color=#AFB423>a</font><font color=#ABBD18>r</font><font color=#A7C60D>e</font>
