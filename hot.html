@@ -94,7 +94,7 @@
       }
 
       async function generateHeatmap(month, year) {
-        const xml = await fetchXML("/index.xml");
+        const xml = await fetchXML("/index.xml"); //在这里更改xml地址
         const items = xml.querySelectorAll("item");
 
         const daysInMonth = new Date(year, month, 0).getDate();
