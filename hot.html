@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>博客文章热力图</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f4f4f4;
+      }
+      .container {
+        text-align: center;
+        width: 90%;
+        max-width: 600px;
+      }
+      .heatmap-container {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        grid-gap: 2px;
+        width: 100%;
+        max-width: 600px;
+      }
+      .heatmap-cell {
+        position: relative;
+        background-color: #ffeb3b; /* Default for no articles */
+        border-radius: 4px;
+        box-shadow: 0 0 1px rgba(0, 0, 0, 0.2);
+        height: 0;
+        padding-bottom: 100%; /* Aspect ratio 1:1 */
+        transition: background-color 0.3s;
+      }
+      .tooltip {
+        display: none;
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #333;
+        color: #fff;
+        padding: 5px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        z-index: 10;
+        pointer-events: none;
+        margin-bottom: 5px;
+      }
+      .heatmap-cell:hover .tooltip {
+        display: block;
+      }
+      .level-1 {
+        background-color: #d6e685;
+      } /* Light green */
+      .level-2 {
+        background-color: #8cc665;
+      } /* Medium green */
+      .level-3 {
+        background-color: #44a340;
+      } /* Green */
+      .level-4 {
+        background-color: #1e6823;
+      } /* Dark green */
+      .level-5 {
+        background-color: #196127;
+      } /* Very dark green */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>博客文章热力图</h1>
+      <div class="controls">
+        <label for="month-input">选择月份:</label>
+        <input type="month" id="month-input" />
+      </div>
+      <div id="heatmap" class="heatmap-container"></div>
+    </div>
+    <script>
+      let xmlCache = null;
+
+      async function fetchXML(url) {
+        if (!xmlCache) {
+          const response = await fetch(url);
+          const text = await response.text();
+          const parser = new DOMParser();
+          xmlCache = parser.parseFromString(text, "application/xml");
+        }
+        return xmlCache;
+      }
+
+      async function generateHeatmap(month, year) {
+        const xml = await fetchXML("/index.xml");
+        const items = xml.querySelectorAll("item");
+
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const postsByDay = Array(daysInMonth).fill(0);
+        const postsDetails = Array.from({ length: daysInMonth }, () => []);
+
+        items.forEach((item) => {
+          const pubDate = item.querySelector("pubDate").textContent;
+          const postDate = new Date(pubDate);
+          if (
+            postDate.getFullYear() === year &&
+            postDate.getMonth() + 1 === month
+          ) {
+            const day = postDate.getDate();
+            postsByDay[day - 1]++;
+            postsDetails[day - 1].push(item.querySelector("title").textContent);
+          }
+        });
+
+        const heatmapContainer = document.getElementById("heatmap");
+        heatmapContainer.innerHTML = "";
+
+        let hasArticles = false;
+
+        for (let i = 0; i < 36; i++) {
+          const cell = document.createElement("div");
+          cell.className = "heatmap-cell";
+
+          if (i < daysInMonth) {
+            const count = postsByDay[i];
+            if (count > 0) {
+              cell.classList.add(`level-${Math.min(count, 5)}`);
+              hasArticles = true;
+              const tooltip = document.createElement("div");
+              tooltip.className = "tooltip";
+              tooltip.textContent = `日期: ${year}-${month}-${
+                i + 1
+              }\n文章: ${postsDetails[i].join(", ")}`;
+              cell.appendChild(tooltip);
+            } else {
+              const tooltip = document.createElement("div");
+              tooltip.className = "tooltip";
+              tooltip.textContent = `日期: ${year}-${month}-${i + 1}`;
+              cell.appendChild(tooltip);
+            }
+          }
+          heatmapContainer.appendChild(cell);
+        }
+
+        if (!hasArticles) {
+          alert("所选月份没有文章。请重新选择有文章的月份。");
+        }
+      }
+
+      function handleChange() {
+        const date = document.getElementById("month-input").value;
+        const [year, month] = date.split("-").map(Number);
+        generateHeatmap(month, year);
+      }
+
+      function init() {
+        const input = document.getElementById("month-input");
+        input.max = new Date().toISOString().split("T")[0].slice(0, 7);
+        input.addEventListener("change", handleChange);
+        input.value = new Date().toISOString().slice(0, 7);
+        handleChange();
+      }
+
+      window.onload = init;
+    </script>
+  </body>
+</html>
