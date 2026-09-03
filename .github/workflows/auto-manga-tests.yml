@@ -1,6 +1,7 @@
 name: Auto Manga Tests
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - feat/auto-manga-typeset-app
