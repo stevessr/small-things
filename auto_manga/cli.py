@@ -62,14 +62,30 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--glossary", type=Path)
     p.add_argument("--no-tm", action="store_true")
 
-    p.add_argument("--direction", choices=("auto", "horizontal", "vertical"), default="auto")
-    p.add_argument("--font", type=Path)
-    p.add_argument("--font-size", type=int, default=42)
-    p.add_argument("--min-font-size", type=int, default=14)
-    p.add_argument("--text-color", default="#111111")
-    p.add_argument("--stroke-color", default="#FFFFFF")
-    p.add_argument("--stroke-width", type=int, default=2)
-    p.add_argument("--inpaint-radius", type=int, default=3)
+    cleaning = p.add_argument_group("cleaning / inpainting")
+    cleaning.add_argument("--inpaint-radius", type=int, default=3)
+    cleaning.add_argument("--inpaint-dilate", type=int, default=2, help="Minimum mask expansion in pixels")
+    cleaning.add_argument("--mask-auto-expand", action=argparse.BooleanOptionalAction, default=True)
+    cleaning.add_argument("--mask-max-dilate", type=int, default=6)
+    cleaning.add_argument("--mask-color-aware", action=argparse.BooleanOptionalAction, default=True)
+    cleaning.add_argument("--mask-polygon-guard", action=argparse.BooleanOptionalAction, default=True)
+
+    typography = p.add_argument_group("replacement typography")
+    typography.add_argument("--direction", choices=("auto", "horizontal", "vertical"), default="auto")
+    typography.add_argument("--font", type=Path)
+    typography.add_argument("--dialogue-font", type=Path)
+    typography.add_argument("--narration-font", type=Path)
+    typography.add_argument("--sfx-font", type=Path)
+    typography.add_argument("--font-size", type=int, default=42)
+    typography.add_argument("--min-font-size", type=int, default=14)
+    typography.add_argument("--text-color", default="#111111")
+    typography.add_argument("--stroke-color", default="#FFFFFF")
+    typography.add_argument("--stroke-width", type=int, default=2)
+    typography.add_argument("--match-source-style", action=argparse.BooleanOptionalAction, default=True)
+    typography.add_argument("--auto-expand-typeset-box", action=argparse.BooleanOptionalAction, default=True)
+    typography.add_argument("--typeset-expand-ratio", type=float, default=0.35)
+    typography.add_argument("--typeset-bg-tolerance", type=int, default=36)
+
     p.add_argument("--format", choices=("png", "jpg", "jpeg", "webp"), default="png")
     p.add_argument("--no-skip", action="store_true")
     return p
@@ -113,14 +129,28 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
     s.glossary_path = _resolved(args.glossary)
     s.use_translation_memory = not args.no_tm
 
+    s.inpaint_radius = max(1, args.inpaint_radius)
+    s.inpaint_dilate = max(0, args.inpaint_dilate)
+    s.mask_auto_expand = args.mask_auto_expand
+    s.mask_max_dilate = max(s.inpaint_dilate, args.mask_max_dilate)
+    s.mask_color_aware = args.mask_color_aware
+    s.mask_polygon_guard = args.mask_polygon_guard
+
     s.typeset_direction = args.direction
     s.font_path = _resolved(args.font)
+    s.dialogue_font_path = _resolved(args.dialogue_font)
+    s.narration_font_path = _resolved(args.narration_font)
+    s.sfx_font_path = _resolved(args.sfx_font)
     s.font_size = max(6, args.font_size)
     s.min_font_size = max(6, min(args.min_font_size, s.font_size))
     s.text_color = args.text_color
     s.stroke_color = args.stroke_color
     s.stroke_width = max(0, args.stroke_width)
-    s.inpaint_radius = max(1, args.inpaint_radius)
+    s.match_source_style = args.match_source_style
+    s.auto_expand_typeset_box = args.auto_expand_typeset_box
+    s.typeset_expand_ratio = max(0.0, min(2.0, args.typeset_expand_ratio))
+    s.typeset_background_tolerance = max(0, min(255, args.typeset_bg_tolerance))
+
     s.output_format = args.format
     s.skip_unchanged = not args.no_skip
     return s
