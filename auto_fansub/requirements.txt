@@ -1,0 +1,2 @@
+# Required only when no sidecar subtitle exists.
+faster-whisper>=1.1.0,<2
