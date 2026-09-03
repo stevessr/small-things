@@ -102,21 +102,35 @@ def _ocr_openai_vision(crop: Image.Image, settings: Settings) -> str:
     )
 
 
+def _preserved_sfx(region: TextRegion, settings: Settings) -> bool:
+    return settings.preserve_sfx and region.region_type == "sfx" and not settings.translate_sfx
+
+
 def ocr_regions(image: Image.Image, regions: list[TextRegion], settings: Settings, progress=None) -> None:
     if settings.ocr_backend == "none":
         return
-    total = max(1, len(regions))
-    for index, region in enumerate(regions):
+    active = [region for region in regions if region.enabled and not _preserved_sfx(region, settings)]
+    total = max(1, len(active))
+    for index, region in enumerate(active):
         crop = image.crop(region.box)
-        if settings.ocr_backend == "manga_ocr":
-            text = _ocr_manga(crop)
-        elif settings.ocr_backend == "openai_vision":
-            text = _ocr_openai_vision(crop, settings)
-        else:
-            raise ValueError(f"Unsupported OCR backend: {settings.ocr_backend}")
-        region.source = normalize_text(text)
+        try:
+            if settings.ocr_backend == "manga_ocr":
+                text = _ocr_manga(crop)
+            elif settings.ocr_backend == "openai_vision":
+                text = _ocr_openai_vision(crop, settings)
+            else:
+                raise ValueError(f"Unsupported OCR backend: {settings.ocr_backend}")
+            region.source = normalize_text(text)
+            region.metadata.pop("ocr_error", None)
+            region.metadata["ocr_backend"] = settings.ocr_backend
+            message = region.source[:80]
+        except Exception as exc:
+            # A single OCR crop must not terminate a whole chapter/volume.
+            region.source = ""
+            region.metadata["ocr_error"] = f"{type(exc).__name__}: {exc}"
+            message = f"OCR failed: {type(exc).__name__}"
         if progress:
-            progress("ocr", (index + 1) / total, region.source[:80])
+            progress("ocr", (index + 1) / total, message)
 
 
 def load_glossary(path: str) -> dict[str, str]:
@@ -127,6 +141,8 @@ def load_glossary(path: str) -> dict[str, str]:
         raise FileNotFoundError(source)
     if source.suffix.lower() == ".json":
         data = json.loads(source.read_text("utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError(f"Glossary JSON must be an object: {source}")
         return {str(key): str(value) for key, value in data.items()}
     result: dict[str, str] = {}
     for line in source.read_text("utf-8").splitlines():
@@ -141,6 +157,25 @@ def load_glossary(path: str) -> dict[str, str]:
             continue
         result[left.strip()] = right.strip()
     return result
+
+
+def glossary_fingerprint(glossary: dict[str, str]) -> str:
+    raw = json.dumps(glossary, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def translation_context_fingerprint(settings: Settings, glossary: dict[str, str] | None = None) -> str:
+    glossary = load_glossary(settings.glossary_path) if glossary is None else glossary
+    payload = {
+        "target": settings.target_language,
+        "provider": settings.translation_provider,
+        "base_url": settings.translation_base_url.rstrip("/"),
+        "model": settings.translation_model,
+        "glossary": glossary_fingerprint(glossary),
+        "translate_sfx": settings.translate_sfx,
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
 
 
 def _tm_path(output_root: Path) -> Path:
@@ -166,8 +201,21 @@ def save_translation_memory(output_root: Path, memory: dict[str, str]) -> None:
     temp.replace(path)
 
 
-def translation_memory_key(source: str, target: str) -> str:
-    raw = f"{target}\0{normalize_text(source)}".encode("utf-8")
+def translation_memory_key(
+    source: str,
+    target: str,
+    provider: str = "",
+    model: str = "",
+    glossary_hash: str = "",
+) -> str:
+    payload = {
+        "source": normalize_text(source),
+        "target": target,
+        "provider": provider,
+        "model": model,
+        "glossary": glossary_hash,
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
 
 
@@ -177,10 +225,12 @@ def _translate_batch(texts: list[str], settings: Settings, glossary: dict[str, s
         "You are translating manga/comic dialogue and narration. "
         f"Translate into {settings.target_language}. "
         "Keep each item concise and natural for typesetting. Preserve names, tone, "
-        "honorific intent, sound effects and punctuation appropriately. "
+        "honorific intent and punctuation appropriately. "
         "Return ONLY a JSON array of translated strings in exactly the same order "
         "and length as the input array."
     )
+    if settings.translate_sfx:
+        instruction += " Translate sound effects naturally when an input item is an SFX region."
     if glossary_text:
         instruction += "\nMandatory glossary:\n" + glossary_text
     payload = {
@@ -213,35 +263,72 @@ def _translate_batch(texts: list[str], settings: Settings, glossary: dict[str, s
 
 
 def translate_regions(regions: list[TextRegion], settings: Settings, output_root: Path, progress=None) -> None:
-    active = [region for region in regions if region.enabled and region.source.strip()]
+    active = [
+        region
+        for region in regions
+        if region.enabled and region.source.strip() and not _preserved_sfx(region, settings)
+    ]
     if not active:
         return
     if settings.translation_provider == "none":
         for region in active:
             region.translation = region.source
+            region.metadata.pop("translation_error", None)
+            region.metadata["translation_backend"] = "none"
         return
     if settings.translation_provider != "openai_compatible":
         raise ValueError(f"Unsupported translation provider: {settings.translation_provider}")
 
     glossary = load_glossary(settings.glossary_path)
+    glossary_hash = glossary_fingerprint(glossary)
     memory = load_translation_memory(output_root) if settings.use_translation_memory else {}
     pending: list[TextRegion] = []
     for region in active:
-        key = translation_memory_key(region.source, settings.target_language)
+        key = translation_memory_key(
+            region.source,
+            settings.target_language,
+            settings.translation_provider,
+            settings.translation_model,
+            glossary_hash,
+        )
         if key in memory:
             region.translation = memory[key]
+            region.metadata["translation_memory_hit"] = True
+            region.metadata.pop("translation_error", None)
         else:
+            region.metadata["translation_memory_hit"] = False
             pending.append(region)
 
     batch_size = max(1, settings.translation_batch_size)
     done = len(active) - len(pending)
     for start in range(0, len(pending), batch_size):
         batch = pending[start : start + batch_size]
-        translations = _translate_batch([region.source for region in batch], settings, glossary)
+        try:
+            translations = _translate_batch([region.source for region in batch], settings, glossary)
+        except Exception as exc:
+            # API failures are quality/review data, not a reason to terminate the volume.
+            error = f"{type(exc).__name__}: {exc}"
+            for region in batch:
+                region.translation = ""
+                region.metadata["translation_error"] = error
+            done += len(batch)
+            if progress:
+                progress("translate", done / len(active), f"translation failed for {len(batch)} region(s)")
+            continue
+
         for region, translated in zip(batch, translations):
             region.translation = translated
+            region.metadata.pop("translation_error", None)
+            region.metadata["translation_backend"] = settings.translation_provider
             if settings.use_translation_memory:
-                memory[translation_memory_key(region.source, settings.target_language)] = translated
+                key = translation_memory_key(
+                    region.source,
+                    settings.target_language,
+                    settings.translation_provider,
+                    settings.translation_model,
+                    glossary_hash,
+                )
+                memory[key] = translated
         done += len(batch)
         if progress:
             progress("translate", done / len(active), f"{done}/{len(active)}")
