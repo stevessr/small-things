@@ -1,0 +1,30 @@
+name: Auto Manga Tests
+
+on:
+  push:
+    branches:
+      - feat/auto-manga-typeset-app
+    paths:
+      - 'auto_manga/**'
+      - '.github/workflows/auto-manga-tests.yml'
+  pull_request:
+    paths:
+      - 'auto_manga/**'
+      - '.github/workflows/auto-manga-tests.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip Pillow numpy opencv-python
+      - name: Run unit tests
+        run: python -m unittest discover -s auto_manga/tests -v
+      - name: Compile modules
+        run: python -m py_compile auto_manga/*.py auto_manga/detectors/*.py auto_manga/inpainters/*.py
