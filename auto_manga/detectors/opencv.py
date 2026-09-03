@@ -113,9 +113,11 @@ def detect_polarity(gray_crop: np.ndarray) -> str:
     if gray_crop.size == 0:
         return "unknown"
     mean = float(np.mean(gray_crop))
-    p20 = float(np.percentile(gray_crop, 20))
-    p80 = float(np.percentile(gray_crop, 80))
-    contrast = p80 - p20
+    # Text commonly occupies well below 20% of a region. 5/95 percentiles still
+    # expose minority foreground strokes while ignoring a few isolated outliers.
+    p05 = float(np.percentile(gray_crop, 5))
+    p95 = float(np.percentile(gray_crop, 95))
+    contrast = p95 - p05
     if contrast < 20:
         return "unknown"
     # Narration boxes / inverted bubbles generally have a dark majority background.
