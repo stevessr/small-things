@@ -61,20 +61,28 @@ from .render import (
     wrap_horizontal,
 )
 from .runtime import inference_size, resolve_runtime_profile
+from .typography import (
+    contrast_ratio,
+    estimate_source_font_size,
+    infer_region_style,
+    resolve_region_style,
+    resolve_typeset_box,
+)
 
 __all__ = [
     "AutoDetector", "AutoInpainter", "CTDDetector", "CURRENT_SCHEMA_VERSION",
     "DBNetDetector", "DetectorRun", "GENERATED_SUFFIX", "IMAGE_EXTENSIONS",
     "InpaintRun", "LaMaInpainter", "OpenCVDetector", "OpenCVInpainter",
     "PageJob", "Settings", "TextRegion", "assess_region_typesetting",
-    "build_region_glyph_mask", "build_text_mask", "create_detector", "create_inpainter",
-    "detect_text_regions", "detect_with_backend", "discover_pages", "erase_original_text",
-    "erase_original_text_with_report", "evaluate_page_quality", "glossary_fingerprint",
-    "inference_size", "inpaint_with_backend", "load_glossary", "load_project",
-    "load_translation_memory", "merge_boxes", "migrate_project", "natural_sort_key",
-    "normalize_text", "ocr_regions", "page_cleaned_cache_path", "page_fingerprint",
-    "page_output_paths", "process_page", "render_project", "resolve_font",
-    "resolve_runtime_profile", "save_image", "save_project", "save_translation_memory",
+    "build_region_glyph_mask", "build_text_mask", "contrast_ratio", "create_detector",
+    "create_inpainter", "detect_text_regions", "detect_with_backend", "discover_pages",
+    "erase_original_text", "erase_original_text_with_report", "estimate_source_font_size",
+    "evaluate_page_quality", "glossary_fingerprint", "infer_region_style", "inference_size",
+    "inpaint_with_backend", "load_glossary", "load_project", "load_translation_memory",
+    "merge_boxes", "migrate_project", "natural_sort_key", "normalize_text", "ocr_regions",
+    "page_cleaned_cache_path", "page_fingerprint", "page_output_paths", "process_page",
+    "render_project", "resolve_font", "resolve_region_style", "resolve_runtime_profile",
+    "resolve_typeset_box", "save_image", "save_project", "save_translation_memory",
     "settings_fingerprint", "stage_fingerprint", "translate_regions",
     "translation_context_fingerprint", "translation_memory_key", "typeset_translations",
     "wrap_horizontal",
