@@ -22,6 +22,37 @@ def create_detector(name: str, settings: Settings) -> TextDetector:
     raise ValueError(f"Unsupported detector backend: {name}")
 
 
+def _backend_chain(requested: str) -> tuple[str, ...]:
+    requested = requested.lower().strip()
+    if requested == "auto":
+        return ("ctd", "dbnet", "opencv")
+    if requested == "ctd":
+        return ("ctd", "dbnet", "opencv")
+    if requested == "dbnet":
+        return ("dbnet", "opencv")
+    if requested == "opencv":
+        return ("opencv",)
+    raise ValueError(f"Unsupported detector backend: {requested}")
+
+
+def _run_chain(image: Image.Image, settings: Settings, requested: str) -> DetectorRun:
+    reasons: list[str] = []
+    for backend in _backend_chain(requested):
+        detector = create_detector(backend, settings)
+        try:
+            regions = detector.detect(image)
+            for region in regions:
+                region.metadata.setdefault("detector", backend)
+                if reasons:
+                    region.metadata.setdefault("detector_fallbacks", list(reasons))
+            return DetectorRun(regions, backend, reasons)
+        except Exception as exc:
+            reasons.append(f"{backend}: {type(exc).__name__}: {exc}")
+            if backend == "opencv":
+                raise RuntimeError("All detector backends failed: " + "; ".join(reasons)) from exc
+    return DetectorRun([], "", reasons)
+
+
 class AutoDetector:
     name = "auto"
 
@@ -30,31 +61,13 @@ class AutoDetector:
         self.last_run = DetectorRun([], "", [])
 
     def detect(self, image: Image.Image) -> list[TextRegion]:
-        reasons: list[str] = []
-        for backend in ("ctd", "dbnet", "opencv"):
-            detector = create_detector(backend, self.settings)
-            try:
-                regions = detector.detect(image)
-                self.last_run = DetectorRun(regions, backend, reasons)
-                for region in regions:
-                    region.metadata.setdefault("detector", backend)
-                    if reasons:
-                        region.metadata.setdefault("detector_fallbacks", list(reasons))
-                return regions
-            except Exception as exc:
-                reasons.append(f"{backend}: {type(exc).__name__}: {exc}")
-                if backend == "opencv":
-                    raise
-        self.last_run = DetectorRun([], "", reasons)
-        return []
+        self.last_run = _run_chain(image, self.settings, "auto")
+        return self.last_run.regions
 
 
 def detect_with_backend(image: Image.Image, settings: Settings) -> DetectorRun:
-    detector = create_detector(settings.detector, settings)
-    regions = detector.detect(image)
-    if isinstance(detector, AutoDetector):
-        return detector.last_run
-    return DetectorRun(regions, getattr(detector, "name", settings.detector), [])
+    # Explicit model backends retain batch-safe fallbacks too.
+    return _run_chain(image, settings, settings.detector)
 
 
 __all__ = [
