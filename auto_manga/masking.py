@@ -17,10 +17,7 @@ def _adaptive_block_size(height: int, width: int) -> int:
 def _threshold_glyphs(gray: np.ndarray, polarity: str) -> np.ndarray:
     blur = cv2.GaussianBlur(gray, (3, 3), 0)
     block = _adaptive_block_size(*gray.shape[:2])
-    if polarity == "light_on_dark":
-        work = 255 - blur
-    else:
-        work = blur
+    work = 255 - blur if polarity == "light_on_dark" else blur
 
     adaptive = cv2.adaptiveThreshold(
         work, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, block, 9
@@ -30,7 +27,24 @@ def _threshold_glyphs(gray: np.ndarray, polarity: str) -> np.ndarray:
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_side, kernel_side))
     blackhat = cv2.morphologyEx(work, cv2.MORPH_BLACKHAT, kernel)
     _, local = cv2.threshold(blackhat, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return cv2.bitwise_or(cv2.bitwise_and(adaptive, otsu), local)
+    # Otsu is reliable on simple high-contrast balloons; adaptive/local cues help textured pages.
+    return cv2.bitwise_or(otsu, cv2.bitwise_and(adaptive, local))
+
+
+def _contrast_fallback(gray: np.ndarray, polarity: str) -> np.ndarray:
+    """Version-stable foreground extraction used only when OpenCV thresholding yields no glyphs."""
+    if gray.size == 0:
+        return np.zeros_like(gray, dtype=np.uint8)
+    low = float(np.percentile(gray, 5))
+    high = float(np.percentile(gray, 95))
+    if high - low < 12:
+        return np.zeros_like(gray, dtype=np.uint8)
+    threshold = (low + high) * 0.5
+    if polarity == "light_on_dark":
+        foreground = gray > threshold
+    else:
+        foreground = gray < threshold
+    return np.where(foreground, 255, 0).astype(np.uint8)
 
 
 def _filter_components(binary: np.ndarray, settings: Settings) -> np.ndarray:
@@ -59,17 +73,24 @@ def _filter_components(binary: np.ndarray, settings: Settings) -> np.ndarray:
     for index, _area in kept:
         output[labels == index] = 255
 
-    # Never allow an adaptive mask to degenerate into wiping most of a region.
+    # Never allow a mask to degenerate into wiping most of a region.
     fill = float(np.count_nonzero(output)) / total
     if fill > settings.mask_max_fill_ratio and kept:
         output[:] = 0
-        for index, area in sorted(kept, key=lambda item: item[1]):
+        for index, _area in sorted(kept, key=lambda item: item[1]):
             candidate = output.copy()
             candidate[labels == index] = 255
             if float(np.count_nonzero(candidate)) / total > settings.mask_max_fill_ratio:
                 break
             output = candidate
     return output
+
+
+def _mask_for_polarity(crop: np.ndarray, polarity: str, settings: Settings) -> np.ndarray:
+    glyph = _filter_components(_threshold_glyphs(crop, polarity), settings)
+    if np.count_nonzero(glyph) == 0:
+        glyph = _filter_components(_contrast_fallback(crop, polarity), settings)
+    return glyph
 
 
 def build_region_glyph_mask(image: Image.Image, region: TextRegion, settings: Settings) -> np.ndarray:
@@ -83,10 +104,9 @@ def build_region_glyph_mask(image: Image.Image, region: TextRegion, settings: Se
     polarity = region.polarity if region.polarity in {"dark_on_light", "light_on_dark"} else detect_polarity(crop)
     region.polarity = polarity
 
-    if polarity == "mixed" or polarity == "unknown":
-        dark = _filter_components(_threshold_glyphs(crop, "dark_on_light"), settings)
-        light = _filter_components(_threshold_glyphs(crop, "light_on_dark"), settings)
-        # Pick the more conservative polarity unless their fill is similar, then union them.
+    if polarity in {"mixed", "unknown"}:
+        dark = _mask_for_polarity(crop, "dark_on_light", settings)
+        light = _mask_for_polarity(crop, "light_on_dark", settings)
         dark_fill = np.count_nonzero(dark)
         light_fill = np.count_nonzero(light)
         if min(dark_fill, light_fill) == 0:
@@ -94,10 +114,9 @@ def build_region_glyph_mask(image: Image.Image, region: TextRegion, settings: Se
         elif max(dark_fill, light_fill) > min(dark_fill, light_fill) * 2.5:
             glyph = dark if dark_fill < light_fill else light
         else:
-            glyph = cv2.bitwise_or(dark, light)
-            glyph = _filter_components(glyph, settings)
+            glyph = _filter_components(cv2.bitwise_or(dark, light), settings)
     else:
-        glyph = _filter_components(_threshold_glyphs(crop, polarity), settings)
+        glyph = _mask_for_polarity(crop, polarity, settings)
 
     if settings.inpaint_dilate > 0 and glyph.size:
         size = settings.inpaint_dilate * 2 + 1
