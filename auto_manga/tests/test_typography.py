@@ -106,8 +106,13 @@ class TypographyTests(unittest.TestCase):
         font = resolve_font(settings, 24)
         scratch = Image.new("RGB", (300, 100), "white")
         draw = ImageDraw.Draw(scratch)
-        hello_width = draw.textbbox((0, 0), "hello", font=font)[2]
-        lines = wrap_horizontal("hello world", draw, font, hello_width + 4)
+        hello_box = draw.textbbox((0, 0), "hello", font=font)
+        world_box = draw.textbbox((0, 0), "world", font=font)
+        phrase_box = draw.textbbox((0, 0), "hello world", font=font)
+        word_width = max(hello_box[2] - hello_box[0], world_box[2] - world_box[0])
+        phrase_width = phrase_box[2] - phrase_box[0]
+        max_width = min(phrase_width - 1, word_width + 4)
+        lines = wrap_horizontal("hello world", draw, font, max_width)
         self.assertEqual(lines, ["hello", "world"])
 
 
