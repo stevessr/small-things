@@ -51,17 +51,24 @@ class Settings:
     glossary_path: str = ""
     use_translation_memory: bool = True
 
-    # Inpainting
+    # Inpainting / source glyph extraction
     inpainter: str = "auto"
     lama_model_path: str = ""
     inpaint_radius: int = 3
     inpaint_dilate: int = 2
+    mask_auto_expand: bool = True
+    mask_max_dilate: int = 6
+    mask_color_aware: bool = True
+    mask_polygon_guard: bool = True
     mask_min_component_area: int = 3
     mask_max_component_ratio: float = 0.30
     mask_max_fill_ratio: float = 0.48
 
     # Typesetting
     font_path: str = ""
+    dialogue_font_path: str = ""
+    narration_font_path: str = ""
+    sfx_font_path: str = ""
     font_size: int = 42
     min_font_size: int = 14
     text_color: str = "#111111"
@@ -70,6 +77,10 @@ class Settings:
     line_spacing: float = 1.1
     typeset_direction: str = "auto"
     box_margin: int = 8
+    match_source_style: bool = True
+    auto_expand_typeset_box: bool = True
+    typeset_expand_ratio: float = 0.35
+    typeset_background_tolerance: int = 36
 
     # Output / cache
     output_format: str = "png"
@@ -168,12 +179,16 @@ def settings_fingerprint(settings: Settings, stage: str | None = None) -> str:
         },
         "inpaint": {
             "inpainter", "runtime_profile", "lama_model_path", "inpaint_radius", "inpaint_dilate",
+            "mask_auto_expand", "mask_max_dilate", "mask_color_aware", "mask_polygon_guard",
             "mask_min_component_area", "mask_max_component_ratio", "mask_max_fill_ratio", "preserve_sfx",
+            "match_source_style",
         },
         "render": {
-            "font_path", "font_size", "min_font_size", "text_color", "stroke_color", "stroke_width",
-            "line_spacing", "typeset_direction", "box_margin", "output_format", "jpeg_quality",
-            "preserve_sfx",
+            "font_path", "dialogue_font_path", "narration_font_path", "sfx_font_path",
+            "font_size", "min_font_size", "text_color", "stroke_color", "stroke_width",
+            "line_spacing", "typeset_direction", "box_margin", "match_source_style",
+            "auto_expand_typeset_box", "typeset_expand_ratio", "typeset_background_tolerance",
+            "output_format", "jpeg_quality", "preserve_sfx",
         },
     }
     if stage in stage_fields:
