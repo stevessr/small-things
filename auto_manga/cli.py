@@ -5,11 +5,11 @@ import os
 from pathlib import Path
 
 try:
-    from .core import Settings, discover_pages, page_output_paths, process_page
+    from .core import Settings, discover_pages, load_project, page_output_paths, process_page
 except ImportError:
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from auto_manga.core import Settings, discover_pages, page_output_paths, process_page
+    from auto_manga.core import Settings, discover_pages, load_project, page_output_paths, process_page
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,7 +19,32 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--recursive", action="store_true")
     p.add_argument("--scan-only", action="store_true")
     p.add_argument("--force", action="store_true")
-    p.add_argument("--render-existing", action="store_true", help="Render existing .manga.json without OCR/translation")
+    p.add_argument("--review-only", action="store_true", help="Only process pages whose project is marked needs_review")
+    p.add_argument(
+        "--rerun",
+        choices=("all", "detect", "ocr", "translate", "inpaint", "render"),
+        help="Force one pipeline stage (and required downstream work) without throwing away project edits",
+    )
+    p.add_argument(
+        "--render-existing",
+        action="store_true",
+        help="Compatibility alias for --rerun render; never reruns detect/OCR/translation",
+    )
+
+    p.add_argument("--detector", choices=("auto", "ctd", "dbnet", "opencv"), default="auto")
+    p.add_argument("--inpainter", choices=("auto", "lama", "opencv"), default="auto")
+    p.add_argument(
+        "--runtime-profile",
+        choices=("auto", "cpu", "low_vram", "balanced", "quality"),
+        default="auto",
+    )
+    p.add_argument("--model-cache", type=Path, help="Override ~/.cache/small-things/auto-manga")
+    p.add_argument("--ctd-model", type=Path, help="Use a local CTD ONNX model")
+    p.add_argument("--dbnet-model", type=Path, help="Use a local DBNet ONNX model")
+    p.add_argument("--lama-model", type=Path, help="Use a local trusted LaMa model")
+    p.add_argument("--detect-sfx", action=argparse.BooleanOptionalAction, default=True)
+    p.add_argument("--preserve-sfx", action=argparse.BooleanOptionalAction, default=True)
+    p.add_argument("--translate-sfx", action="store_true")
 
     p.add_argument("--ocr", choices=("manga_ocr", "openai_vision", "none"), default="manga_ocr")
     p.add_argument("--ocr-language", default="ja")
@@ -50,9 +75,24 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _resolved(value: Path | None) -> str:
+    return str(value.expanduser().resolve()) if value else ""
+
+
 def settings_from_args(args: argparse.Namespace) -> Settings:
     s = Settings()
     s.recursive = args.recursive
+    s.detector = args.detector
+    s.inpainter = args.inpainter
+    s.runtime_profile = args.runtime_profile
+    s.model_cache_dir = _resolved(args.model_cache)
+    s.ctd_model_path = _resolved(args.ctd_model)
+    s.dbnet_model_path = _resolved(args.dbnet_model)
+    s.lama_model_path = _resolved(args.lama_model)
+    s.detect_sfx = args.detect_sfx
+    s.preserve_sfx = args.preserve_sfx
+    s.translate_sfx = args.translate_sfx
+
     s.ocr_backend = args.ocr
     s.ocr_language = args.ocr_language
     s.vision_api_key = args.vision_api_key if args.vision_api_key is not None else os.getenv("OPENAI_API_KEY", "")
@@ -70,11 +110,11 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
     s.target_language = args.target
     s.translation_batch_size = max(1, args.batch_size)
     s.translation_retries = max(0, args.retries)
-    s.glossary_path = str(args.glossary.expanduser().resolve()) if args.glossary else ""
+    s.glossary_path = _resolved(args.glossary)
     s.use_translation_memory = not args.no_tm
 
     s.typeset_direction = args.direction
-    s.font_path = str(args.font.expanduser().resolve()) if args.font else ""
+    s.font_path = _resolved(args.font)
     s.font_size = max(6, args.font_size)
     s.min_font_size = max(6, min(args.min_font_size, s.font_size))
     s.text_color = args.text_color
@@ -84,6 +124,17 @@ def settings_from_args(args: argparse.Namespace) -> Settings:
     s.output_format = args.format
     s.skip_unchanged = not args.no_skip
     return s
+
+
+def _needs_review(job, output: Path, settings: Settings) -> bool:
+    _out, project = page_output_paths(job, output, settings)
+    if not project.exists():
+        return False
+    try:
+        data, _regions = load_project(project)
+        return bool((data.get("quality") or {}).get("needs_review"))
+    except Exception:
+        return True
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -96,13 +147,24 @@ def main(argv: list[str] | None = None) -> int:
         print("No manga pages found.")
         return 2
 
+    if args.review_only:
+        pages = [job for job in pages if _needs_review(job, output, settings)]
+        if not pages:
+            print("No pages currently need review.")
+            return 0
+
     if args.scan_only:
         for i, job in enumerate(pages, 1):
             out, project = page_output_paths(job, output, settings)
-            print(f"[{i}/{len(pages)}] {job.relative} -> {out.relative_to(output)} | project={project.relative_to(output)}")
+            review = " review" if _needs_review(job, output, settings) else ""
+            print(
+                f"[{i}/{len(pages)}] {job.relative} -> {out.relative_to(output)} "
+                f"| project={project.relative_to(output)}{review}"
+            )
         return 0
 
-    failed = skipped = 0
+    failed = skipped = review_count = 0
+    rerun = "render" if args.render_existing else args.rerun
     for i, job in enumerate(pages, 1):
         print(f"[{i}/{len(pages)}] {job.relative}")
         try:
@@ -117,10 +179,14 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 force=args.force,
                 render_existing_project=args.render_existing,
+                rerun_stage=rerun,
             )
             if job.status == "skipped":
                 skipped += 1
-            print(f"\n  -> {job.status}: {job.message}")
+            if job.needs_review:
+                review_count += 1
+            quality = "" if job.quality_score is None else f" quality={job.quality_score:.3f} issues={job.issue_count}"
+            print(f"\n  -> {job.status}:{quality} {job.message}")
         except KeyboardInterrupt:
             print("\nCancelled.")
             return 130
@@ -129,7 +195,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"\n  FAILED: {exc}")
 
     ok = len(pages) - failed - skipped
-    print(f"Done: {ok} processed, {skipped} skipped, {failed} failed; output={output}")
+    print(
+        f"Done: {ok} processed, {skipped} skipped, {failed} failed, "
+        f"{review_count} need review; output={output}"
+    )
     return 1 if failed else 0
 
 
