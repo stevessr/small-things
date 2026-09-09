@@ -1,0 +1,5 @@
+drawable_group,clip_mask,note
+EyeL_Iris+Highlight,EyeL_ScleraMask,Keep eyeball inside eye white
+EyeR_Iris+Highlight,EyeR_ScleraMask,Keep eyeball inside eye white
+MouthInside,MouthMask,Upper/lower lip edge remains clean
+FrontHairOverlap,,Prefer draw-order over clipping unless needed
