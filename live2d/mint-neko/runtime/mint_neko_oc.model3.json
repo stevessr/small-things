@@ -1,0 +1,29 @@
+{
+  "Version": 3,
+  "FileReferences": {
+    "Moc": "mint_neko_oc.moc3",
+    "Textures": [
+      "textures/texture_00.png"
+    ],
+    "Physics": "mint_neko_oc.physics3.json",
+    "DisplayInfo": "mint_neko_oc.cdi3.json",
+    "Expressions": [
+      {"Name":"smile","File":"expressions/smile.exp3.json"},
+      {"Name":"happy","File":"expressions/happy.exp3.json"},
+      {"Name":"surprised","File":"expressions/surprised.exp3.json"},
+      {"Name":"angry","File":"expressions/angry.exp3.json"},
+      {"Name":"sad","File":"expressions/sad.exp3.json"},
+      {"Name":"blush","File":"expressions/blush.exp3.json"}
+    ],
+    "Motions": {
+      "Idle": [{"File":"motions/idle_01.motion3.json","FadeInTime":0.7,"FadeOutTime":0.7}],
+      "TapHead": [{"File":"motions/tap_head_01.motion3.json","FadeInTime":0.15,"FadeOutTime":0.25}],
+      "Wave": [{"File":"motions/wave_01.motion3.json","FadeInTime":0.25,"FadeOutTime":0.35}]
+    }
+  },
+  "Groups": [
+    {"Target":"Parameter","Name":"EyeBlink","Ids":["ParamEyeLOpen","ParamEyeROpen"]},
+    {"Target":"Parameter","Name":"LipSync","Ids":["ParamMouthOpenY"]}
+  ],
+  "Layout": {"CenterX":0.0,"CenterY":0.0,"Width":2.0}
+}
