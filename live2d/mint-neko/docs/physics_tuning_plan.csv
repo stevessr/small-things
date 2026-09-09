@@ -1,0 +1,9 @@
+setting_id,inputs,output,segments,scale,notes
+PhysicsHairFront,"ParamAngleX, ParamAngleZ",ParamHairFront,3,18,Fast small bounce
+PhysicsHairBackL,"ParamAngleX, ParamBodyAngleX",ParamHairBackL,5,24,Long left rear hair
+PhysicsHairBackR,"ParamAngleX, ParamBodyAngleX",ParamHairBackR,5,-24,Long right rear hair
+PhysicsEarL,"ParamAngleX, ParamAngleZ",ParamEarL,2,12,Soft cat-ear spring
+PhysicsEarR,"ParamAngleX, ParamAngleZ",ParamEarR,2,-12,Soft cat-ear spring
+PhysicsTail,"ParamBodyAngleX, ParamBodyAngleZ",ParamTailX,5,26,Long tail sway
+PhysicsSkirt,"ParamBodyAngleX, ParamBodyAngleZ",ParamSkirt,4,14,Front frill sway
+PhysicsAccessory,"ParamAngleX, ParamAngleZ",ParamAccessory,3,12,Bow/flower subtle
