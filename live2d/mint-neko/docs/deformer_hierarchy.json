@@ -1,0 +1,51 @@
+{
+  "ROOT": {
+    "Body": {
+      "Torso": {
+        "Skirt": {},
+        "TailRoot": {
+          "Tail": {}
+        },
+        "ArmL": {
+          "ForearmL": {
+            "HandL": {}
+          }
+        },
+        "ArmR": {
+          "ForearmR": {
+            "HandR": {}
+          }
+        }
+      },
+      "Neck": {
+        "Head": {
+          "Face": {
+            "Eyes": {
+              "EyeL": {},
+              "EyeR": {}
+            },
+            "Brows": {
+              "BrowL": {},
+              "BrowR": {}
+            },
+            "Mouth": {}
+          },
+          "HairFront": {},
+          "HairSideL": {},
+          "HairSideR": {},
+          "HairBack": {
+            "BackHairL": {},
+            "BackHairR": {}
+          },
+          "EarL": {},
+          "EarR": {},
+          "Accessories": {
+            "MainBow": {},
+            "FlowerL": {},
+            "FlowerR": {}
+          }
+        }
+      }
+    }
+  }
+}
