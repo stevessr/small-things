@@ -1,0 +1,30 @@
+parameter_id,group,purpose,min,default,max,notes
+ParamAngleX,Head,Head yaw,-30,0,30,"Face, hair, ears, accessories follow"
+ParamAngleY,Head,Head pitch,-30,0,30,Face squash and mouth/eye perspective
+ParamAngleZ,Head,Head roll,-30,0,30,Ear and hair sway follow
+ParamBodyAngleX,Body,Torso yaw,-10,0,10,Should drive skirt/tail secondary motion
+ParamBodyAngleY,Body,Torso pitch,-10,0,10,Light use for full-body avatar
+ParamBodyAngleZ,Body,Torso roll,-10,0,10,Skirt and tail follow
+ParamEyeLOpen,Face,Left blink,0,1,1,Editor default open=1
+ParamEyeROpen,Face,Right blink,0,1,1,Editor default open=1
+ParamEyeBallX,Face,Eyeball horizontal,-1,0,1,Both irises
+ParamEyeBallY,Face,Eyeball vertical,-1,0,1,Both irises
+ParamBrowLY,Face,Left brow up/down,-1,0,1,Expression overlay
+ParamBrowRY,Face,Right brow up/down,-1,0,1,Expression overlay
+ParamBrowLAngle,Face,Left brow angle,-1,0,1,Angry/sad
+ParamBrowRAngle,Face,Right brow angle,-1,0,1,Angry/sad
+ParamMouthForm,Face,Smile-frown,-1,0,1,Expression + lip sync compatible
+ParamMouthOpenY,Face,Mouth open,0,0,1,LipSync target
+ParamCheek,Face,Blush,0,0,1,Color/intensity
+ParamBreath,Body,Breathing,0,0,1,Chest/shoulder subtle motion
+ParamArmLA,Body,Left arm action,-1,0,1,Optional wave pose set
+ParamArmRA,Body,Right arm action,-1,0,1,Used in wave motion
+ParamEarL,Head,Left ear physics,-1,0,1,Secondary motion
+ParamEarR,Head,Right ear physics,-1,0,1,Secondary motion
+ParamHairFront,Head,Front hair physics,-1,0,1,Driven by AngleX/Z
+ParamHairBackL,Head,Left rear hair physics,-1,0,1,Multi-segment
+ParamHairBackR,Head,Right rear hair physics,-1,0,1,Multi-segment
+ParamTailX,Body,Tail swing,-1,0,1,Main tail chain
+ParamTailY,Body,Tail lift,-1,0,1,Optional 2nd axis
+ParamSkirt,Body,Skirt sway,-1,0,1,Secondary motion
+ParamAccessory,Head,Accessory sway,-1,0,1,Flowers/bow subtle motion
