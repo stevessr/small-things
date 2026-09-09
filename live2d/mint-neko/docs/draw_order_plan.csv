@@ -1,0 +1,20 @@
+group,draw_order,note
+BackHairFar,10,furthest back mass
+Tail,20,behind body/skirt
+BodyBase,30,torso and limbs
+SkirtBack,35,rear skirt layer
+ArmsBack,40,if rotated behind body
+TorsoClothes,50,shirt/collar/vest
+SkirtFront,60,front skirt frills
+NeckBow,65,front accessory
+HeadBase,70,skin + face base
+Mouth,75,inside lips
+Eyes,80,sclera -> iris -> lash
+Brows,85,above eyes
+EarBack,88,ear base as needed
+HairBackNear,90,near rear hair
+SideHair,100,side locks
+FrontHair,110,bangs
+EarFront,112,cat ears visible front
+HeadAccessories,120,bows/flowers/leaves
+HandsFront,130,when arms in front
