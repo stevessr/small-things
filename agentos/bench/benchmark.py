@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import math
 import statistics
 import sys
 import time
@@ -34,7 +35,7 @@ async def one_run(task_count: int, slots: int, sleep_s: float) -> float:
 def percentile(values: list[float], p: float) -> float:
     ordered = sorted(values)
     # Nearest-rank percentile, clearly defined for small samples.
-    return ordered[max(0, int((len(ordered) - 1) * p))]
+    return ordered[min(len(ordered) - 1, max(0, math.ceil(len(ordered) * p) - 1))]
 
 
 async def measure(task_count: int, parallel: int, sleep_s: float, trials: int) -> dict:
