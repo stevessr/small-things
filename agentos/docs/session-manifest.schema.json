@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/stevessr/small-things/blob/harness/agentos/docs/session-manifest.schema.json",
+  "title": "AgentOS Harness v0.4 retained run manifest",
+  "description": "Written locally by harness_run --runs-root. Digests detect accidental corruption; they are not signatures. Status=running may have no report or digests yet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "status",
+    "exit_code",
+    "started_utc",
+    "finished_utc",
+    "filesystem",
+    "plan_sha256",
+    "task_count_initial",
+    "report",
+    "trace"
+  ],
+  "properties": {
+    "schema": {
+      "type": "integer",
+      "const": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "running",
+        "succeeded",
+        "failed",
+        "interrupted",
+        "error"
+      ]
+    },
+    "exit_code": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "started_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_utc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "filesystem": {
+      "type": "string",
+      "enum": [
+        "host",
+        "layerfs"
+      ]
+    },
+    "plan_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "task_count_initial": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "report": {
+      "type": "string",
+      "const": "report.json"
+    },
+    "trace": {
+      "type": "string",
+      "const": "trace.jsonl"
+    },
+    "report_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "trace_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
