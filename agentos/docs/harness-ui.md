@@ -49,7 +49,7 @@ python3 -m agentos.harness_run examples/agent-declarations.json \
 }
 ```
 
-`/api/state?view=summary` 的“轻量”指**传输负载裁剪**；服务端仍会读取 Report 与 Trace 并构建状态。目前尚未对服务端事件数组或 DAG 建立持久索引，不要把此 API 误认为 O(1) 读盘。
+`/api/state?view=summary` 的“轻量”指**传输负载裁剪**；服务端首次读取或文件发生变化时会解析 Report/Trace 并建立进程内快照缓存；后续同版本的分页/详情请求复用缓存。目前尚未对服务端事件数组或 DAG 建立持久索引，不要把此 API 误认为 O(1) 读盘。
 
 ## 事件驱动变化通知
 

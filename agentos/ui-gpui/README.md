@@ -34,7 +34,9 @@ cargo test --no-default-features
 The native task list requests **a 40-entry server-side page**, not an unbounded
 task map. Every SSE notification or manual/page navigation loads only the
 visible page, with stale responses discarded if the user has already switched
-pages. Global task count and status totals are retained. Full stdout/stderr
+pages. Global task count and status totals are retained. The backend caches
+the parsed snapshot until report/trace files change; multiple page requests
+reuse it. The cache is in-memory, not a persistent task index. Full stdout/stderr
 and resource metrics are fetched **only when an Agent is selected**; the local backend currently still parses the full report to produce each summary. The initial
 window is clamped by GPUI to the current display's visible bounds; it does
 not request a fixed resolution larger than the screen. SSE reconnects only

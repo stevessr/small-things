@@ -17,7 +17,7 @@
 | 独立实验会话和 SHA-256 校验 | 已实现，CI 验证 | [会话管理](run-sessions.md)，不是数字签名或恢复调度 |
 | Web DAG/日志/FC UI | 已实现，HTTP+测试覆盖 | 只读、localhost、非公网服务 |
 | Linux inotify → SSE | 已实现，CI 验证 | 非 Linux/文件父目录不匹配时可能无法监听 |
-| 原生 GPUI Lazy Load 和服务端 40 项分页 | Rust 测试与编译通过 | 服务端减少单次网络传输；仍需完整解析 Report/Trace，无持久索引；没有实机 Wayland/Vulkan 截图验证 |
+| 原生 GPUI Lazy Load 和服务端 40 项分页 | Rust 测试与编译通过 | 服务端减少单次网络传输；文件变化时仍需完整解析 Report/Trace；同版本快照由多个客户端复用，无持久索引；没有实机 Wayland/Vulkan 截图验证 |
 | GPUI 连续 GPU CPU/RSS 曲线 | 待实现 | Report 当前主要返回终局指标 |
 | GPU KV Cache 跨模型共享 | 未实现 | 不能从 SQLite 文本缓存推导 |
 | 原生内核调度器 / 多节点 / mTLS | 未实现 | 非目标阶段 |

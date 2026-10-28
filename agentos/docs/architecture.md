@@ -85,6 +85,8 @@ Host 模式运行真实 Linux 子进程；有委派权限时使用 cgroup v2，�
 
 ## 监控链路：推送而非轮询
 
+服务器按文件状态（inode、大小、mtime/ctime 与事件版本）缓存完整解析结果，降低多客户端、快速翻页时反复解析 JSON 的开销；Trace/Report 变化后重新生成缓存。分页仅传当前任务摘要及对应 DAG，`total/counts` 为全局数值。缓存不是任务数据库，也不保证掉电恢复。
+
 1. Runtime 追加 JSONL 事件；终局报告写入 JSON。
 2. Linux `inotify` 监听这些固定文件所在目录，包含原子 rename 写入。
 3. 本机只读 `/api/changes` SSE 向已连接客户端发送版本变更，心跳是注释，不引发刷新。

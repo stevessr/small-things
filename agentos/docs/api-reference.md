@@ -40,7 +40,7 @@ curl -fsS 'http://127.0.0.1:8765/api/state' | python3 -m json.tool
 
 `GET /api/state?view=summary` 省略所有任务的 `stdout`、`stderr`、`resource_metrics`，`events=[]`。可选 `offset` 与 `limit` **必须同时出现**：`offset` 是按 ID 字典序排列后的 0 基索引（0–10000），`limit` 为 1–40；服务器只返回对应页的 `tasks/dag/declared_by`，但 `total` 和 `counts` 仍为全局结果。非法参数返回 400，报告损坏或超限仍返回 500。摘要中任务仅可能包含 `id`、`status`、`elapsed_s`、`attempts`、`exit_code`、`filesystem_branch`、`filesystem_commit`。
 
-`GET /api/task/planner` 返回 `{"task":{...},"spec":{...}}`。任务 ID 满足 `[A-Za-z][A-Za-z0-9_.-]{0,63}`；非法或不存在时 404。选中任务后才读取详细 stdout/stderr 和资源指标：这是 **传输层 Lazy Load**，**不是**服务器端增量索引；服务器仍要读取 Report 和 Trace 再生成当前状态。
+`GET /api/task/planner` 返回 `{"task":{...},"spec":{...}}`。任务 ID 满足 `[A-Za-z][A-Za-z0-9_.-]{0,63}`；非法或不存在时 404。选中任务后才读取详细 stdout/stderr 和资源指标：这是 **传输层 Lazy Load**，**不是**服务器端增量索引；服务器在缓存未命中或文件变化后仍要完整读取 Report 和 Trace；同版本的多个客户端和分页请求则复用进程内缓存，不能视为磁盘级的 O(1) 查询。
 
 ### 任务结果字段
 
