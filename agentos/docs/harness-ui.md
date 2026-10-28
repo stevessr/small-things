@@ -53,6 +53,8 @@ python3 -m agentos.harness_run examples/agent-declarations.json \
 
 ## 有序事实重放
 
+重放接口有独立的 `TraceIndex`（内存稀疏偏移，每 128 条一项），**不依赖 UI 的 2 MiB/4000 条尾部状态窗**；服务端启动后首次请求会全量校验 Trace，后续追加时增量校验。完整行损坏或断裂返回 409；末尾正在写入的半行不当作事件。不会写入源文件，也不是磁盘持久索引。
+
 `GET /api/records?limit=100` 返回 Supervisor 观察到的事件记录与 `next_seq/session_id/has_more`；增量读取需提供先前的 `session_id` 与 `after`。本端点既不增加状态刷新轮询，也不提供任务写权限。游标请求无足够证据时返回 409，而不是遗漏或伪造历史。详见 [Trace 契约](trace-format.md) 和 [OAR 对照](oar-comparison.md)。
 
 ## 事件驱动变化通知

@@ -37,7 +37,7 @@ python3 -m agentos.capabilities --backend layerfs --format json
 # curl 'http://127.0.0.1:8765/api/records?limit=100'
 ```
 
-Supervisor 事件新增长度受限的连续 `seq`、`session_id` 和声明者 `agent_path`，允许严格游标验证；不完整、旋转或旧 Trace 返回 409，不伪造事件。具体参考 [OAR 设计取舍](docs/oar-comparison.md)。
+Supervisor 事件新增连续 `seq`、`session_id` 和声明者 `agent_path`；`/api/records` 用完整 JSONL 的稀疏索引重放所有仍保留的事件，不受 2 MiB 尾窗限制；不完整、旋转或旧 Trace 返回 409，不伪造事件。具体参考 [OAR 设计取舍](docs/oar-comparison.md)。
 
 ## 已实现能力
 

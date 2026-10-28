@@ -15,6 +15,7 @@
 - [ ] Supervisor JSONL 中的 `seq` 连续、`session_id` 单次稳定、动态任务 `agent_path` 可追溯。
 - [ ] Host IPC 有同一序列上的 `control_requested/control_handled`，且绝不持久化 token/消息正文/Context。
 - [ ] 严格游标 `/api/records` 在旧 Trace、缺号、会话轮换时返回 409，不把重放误当作继续执行。
+- [ ] 大于 2 MiB 或 4000 条的完整 Trace，重放接口仍从 seq=0 返回；损坏的完整行不能被当作最后半行跳过。
 - [ ] `agentos.capabilities` 不把 conditional/unsupported 视为支持；`--require-capability` 能在执行前拒绝。
 
 - [ ] Ubuntu + openEuler 的 Harness CI 工作流完全成功。

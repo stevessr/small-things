@@ -267,7 +267,7 @@
     "/api/records": {
       "get": {
         "summary": "Strict cursor replay of observed supervisor facts, not native conversation/process resume",
-        "description": "Uses only JSONL evidence. Initial after=-1, then session_id is required. Cursor gaps, legacy logs and session rotation return 409 rather than fabricated events. Reads bounded 2 MiB tail, max 4000 decoded records.",
+        "description": "Read-only full-JSONL replay: an in-memory sparse offset index validates every complete record in sequence from zero. It scans historical data once per server/file generation and only appended records later. A partial trailing line is deferred; malformed complete lines, gaps, session changes and legacy traces yield 409. No native model/process resume or on-disk index.",
         "parameters": [
           {
             "name": "after",

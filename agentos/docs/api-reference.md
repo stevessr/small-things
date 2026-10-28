@@ -21,7 +21,7 @@
 
 ## 事实记录与严谨的游标
 
-`GET /api/records` 返回 `schema/session_id/records/next_seq/has_more`，每个新事件包含连续的 `seq`、`session_id`、`agent_path`。仅证明此窗口内有序且连续，不表示可跨越被截断的历史前缀。超过内存读取上限或 Trace 被替换、旧格式无序号时返回 **409**，非法参数 **400**。没有写接口，也不提供原生会话继续执行；详见 [事件语义](trace-format.md)。
+`GET /api/records` 返回 `schema/session_id/records/next_seq/has_more`，每个新事件包含连续的 `seq`、`session_id`、`agent_path`。会对原始 JSONL 的完整记录从 0 开始严格校验（首次扫描后以稀疏内存索引支持分页）；可检索的历史**不受状态 UI 的 2 MiB 尾部窗口或 4000 条限制**。文件实际截断、完整行损坏、异常换会话或旧格式无序号时返回 **409**，非法参数 **400**。尚未写完的最后一行会留待后续完成后读取。首次重建仍需一次 O(Trace 大小) 顺序扫描，没有 SQLite 持久化索引。没有写接口，也不提供原生会话继续执行；详见 [事件语义](trace-format.md)。
 
 ## 状态快照 `GET /api/state`
 
@@ -74,7 +74,7 @@ curl -N http://127.0.0.1:8765/api/changes
 
 ## 限流、大小与时间语义
 
-- Report 最大读取 **8 MiB**，Trace 只看最后 **2 MiB**，最多 **4,000** 个有效事件。
+- Report 最大读取 **8 MiB**；`/api/state` 只看 Trace 最后 **2 MiB**，最多 **4,000** 个有效事件；`/api/records` 使用单独的全量稀疏索引，支持所有保留的完整 JSONL 事件。
 - 浏览器图最多绘制 **160** 个节点；原生 GPUI 一页最多 **40** 项，详情才单独加载。
 - 这些上限不是持久化历史保留策略；输出文件可继续增长。生产使用需补日志轮转与限制。
 - 所有事件包含 Unix **纳秒**时间戳 `time_ns`，而 `elapsed_s` 单位是秒。两者不能混用。

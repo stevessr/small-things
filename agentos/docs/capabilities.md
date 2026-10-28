@@ -5,7 +5,7 @@
 | 能力 | 状态 | 证据与限制 |
 | --- | --- | --- |
 | 后端能力声明与不支持原因 | 已实现，CLI 测试 | `python3 -m agentos.capabilities --backend host --format json`；`conditional` 不当作已验证 |
-| 有序 Supervisor 事件与有限窗口重放 | 已实现，CI 验证 | 有 `seq/session_id/agent_path`；游标缺口 409，不提供原生会话恢复 |
+| 有序 Supervisor 事件与全 Trace 稀疏索引重放 | 已实现，CI 验证 | `seq/session_id/agent_path`；不受 UI 尾窗限制；初次完整扫描、内存稀疏索引、序号缺口 409；不提供原生会话恢复 |
 | Host 多 Agent DAG、优先级和资源预约 | 已实现，CI 验证 | `tests/test_runtime.py` |
 | 动态批量任务声明、租户/环校验 | 已实现，CI 验证 | `tests/test_runtime.py`、`tests/test_plan_lint.py` |
 | Linux Host RLIMIT/进程组回收 | 已实现，CI 验证 | 非安全沙箱；`RLIMIT` 只是故障隔离 |

@@ -26,7 +26,7 @@
 
 ## 代价与下一阶段
 
-目前游标读取范围仅为 Trace 尾部 2 MiB、最多 4000 条，超过读取窗会返回 409；没有 SQLite 事件索引、持久化 native frame、跨进程续执行或双向 provider 控制。后续可增加应用层的持久日志与索引，且必须保留历史来源、缺口和 native resume 与 replay 的区别。
+当前 `/api/records` 以每 128 条记录一个偏移建立**内存稀疏索引**，首次扫描整份 JSONL，后续只读取追加事件；`/api/state` 仍限于 2 MiB/4000 条的轻量视图。没有磁盘持久化 SQLite 索引、持久化 native frame、跨进程续执行或双向 provider 控制。原始 Trace 一旦缺失或被改写，即使有索引也不提供伪重放。后续可增加应用层的持久日志与索引，且必须保留历史来源、缺口和 native resume 与 replay 的区别。
 
 ## 证据
 
