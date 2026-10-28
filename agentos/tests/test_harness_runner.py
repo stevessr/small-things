@@ -122,6 +122,37 @@ class HarnessRunnerTests(unittest.TestCase):
             self.assertEqual(report.read_text(), "previous report untouched")
             self.assertEqual(trace.read_text(), "previous trace untouched")
 
+    def test_session_verifier_rejects_gap_even_with_valid_sha256(self):
+        from agentos.artifacts import file_sha256
+
+        with tempfile.TemporaryDirectory() as temporary:
+            session = Path(temporary) / "20261028T000000Z-evidence"
+            session.mkdir()
+            session_id = "c" * 32
+            report = session / "report.json"
+            trace = session / "trace.jsonl"
+            report.write_text(json.dumps({
+                "tasks": {}, "session_id": session_id, "last_seq": 2
+            }))
+            trace.write_text(
+                json.dumps({"seq": 0, "session_id": session_id,
+                            "event": "started", "task": "a"}) + "\n" +
+                json.dumps({"seq": 2, "session_id": session_id,
+                            "event": "finished", "task": "a"}) + "\n"
+            )
+            (session / "manifest.json").write_text(json.dumps({
+                "schema": 1, "run_id": session.name, "status": "succeeded",
+                "exit_code": 0, "started_utc": "2026-10-28T00:00:00+00:00",
+                "finished_utc": "2026-10-28T00:01:00+00:00",
+                "filesystem": "host", "plan_sha256": "a" * 64,
+                "task_count_initial": 1, "report": "report.json", "trace": "trace.jsonl",
+                "session_id": session_id, "last_seq": 2,
+                "report_sha256": file_sha256(report), "trace_sha256": file_sha256(trace),
+            }))
+            integrity = inspect_run(session)
+            self.assertEqual(integrity["integrity"], "invalid")
+            self.assertIn("sequence", " ".join(integrity["errors"]))
+
     def test_running_session_is_incomplete_not_invalid(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
