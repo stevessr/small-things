@@ -1,0 +1,577 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AgentOS Harness localhost read-only API",
+    "version": "0.4.0",
+    "description": "Strict localhost interface. Requires Host 127.0.0.1:actual_port; intentionally has no authentication or write endpoints. Prototype, not public API."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}",
+      "variables": {
+        "port": {
+          "default": "8765"
+        }
+      }
+    }
+  ],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Server liveness (not Agent health)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header did not match 127.0.0.1:port"
+          }
+        }
+      }
+    },
+    "/api/state": {
+      "get": {
+        "summary": "Full runtime state, or lightweight summary",
+        "parameters": [
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "summary"
+              ]
+            },
+            "description": "summary removes stdout/stderr/resource_metrics from tasks and sets events=[]"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full Snapshot, or Summary Snapshot when view=summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Snapshot"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SummarySnapshot"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header did not match 127.0.0.1:port"
+          },
+          "500": {
+            "description": "Unreadable/oversized report or JSON error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/task/{id}": {
+      "get": {
+        "summary": "Fetch complete task detail on demand",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "task": {
+                      "$ref": "#/components/schemas/Task"
+                    },
+                    "spec": {
+                      "$ref": "#/components/schemas/TaskSpec"
+                    }
+                  },
+                  "required": [
+                    "task",
+                    "spec"
+                  ],
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header did not match 127.0.0.1:port"
+          },
+          "404": {
+            "description": "Invalid or unknown task ID"
+          },
+          "500": {
+            "description": "Unreadable state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/changes": {
+      "get": {
+        "summary": "SSE notification that report or trace changed",
+        "description": "An initial data: <version> event is sent at connection. Further events originate from Linux inotify; : heartbeat comments are not refresh events. No replay or Last-Event-ID support.",
+        "responses": {
+          "200": {
+            "description": "Change notifications",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "SSE lines: data: <integer>\\n\\n or : heartbeat\\n\\n"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header did not match 127.0.0.1:port"
+          },
+          "503": {
+            "description": "Linux inotify unavailable"
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Web dashboard HTML",
+        "responses": {
+          "200": {
+            "description": "HTML",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header did not match 127.0.0.1:port"
+          }
+        }
+      }
+    },
+    "/app.js": {
+      "get": {
+        "summary": "Web dashboard JavaScript",
+        "responses": {
+          "200": {
+            "description": "JS",
+            "content": {
+              "text/javascript": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header did not match 127.0.0.1:port"
+          }
+        }
+      }
+    },
+    "/styles.css": {
+      "get": {
+        "summary": "Web dashboard CSS",
+        "responses": {
+          "200": {
+            "description": "CSS",
+            "content": {
+              "text/css": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Host header did not match 127.0.0.1:port"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Task": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "succeeded",
+              "failed",
+              "blocked"
+            ]
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "elapsed_s": {
+            "type": "number"
+          },
+          "stdout": {
+            "type": "string"
+          },
+          "stderr": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "isolation": {
+            "type": "string"
+          },
+          "filesystem_branch": {
+            "type": "string"
+          },
+          "filesystem_commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resource_metrics": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [],
+        "additionalProperties": true
+      },
+      "TaskSpec": {
+        "type": "object",
+        "properties": {
+          "deps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tenant": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "process",
+              "model",
+              "tool"
+            ]
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "cpu_units": {
+            "type": "integer"
+          },
+          "memory_mib": {
+            "type": "integer"
+          }
+        },
+        "required": [],
+        "additionalProperties": true
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "time_ns": {
+            "type": "integer"
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "admitted",
+              "declared",
+              "started",
+              "retry",
+              "declaration_rejected",
+              "finished",
+              "blocked"
+            ]
+          },
+          "task": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "time_ns",
+          "event"
+        ],
+        "additionalProperties": true
+      },
+      "Snapshot": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "type": "integer",
+            "const": 1
+          },
+          "tasks": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Task"
+            }
+          },
+          "dag": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TaskSpec"
+            }
+          },
+          "declared_by": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "pending",
+              "running",
+              "succeeded",
+              "failed",
+              "blocked"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "pending": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "running": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "succeeded": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "blocked": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "isolation": {
+            "type": "string"
+          },
+          "budget": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "updated_utc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "schema",
+          "tasks",
+          "dag",
+          "declared_by",
+          "events",
+          "counts",
+          "total",
+          "isolation",
+          "budget",
+          "context",
+          "updated_utc"
+        ],
+        "additionalProperties": true
+      },
+      "SummarySnapshot": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "type": "integer",
+            "const": 1
+          },
+          "tasks": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Task"
+            }
+          },
+          "dag": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TaskSpec"
+            }
+          },
+          "declared_by": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "pending",
+              "running",
+              "succeeded",
+              "failed",
+              "blocked"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "pending": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "running": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "succeeded": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "failed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "blocked": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "isolation": {
+            "type": "string"
+          },
+          "budget": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "context": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "updated_utc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "schema",
+          "tasks",
+          "dag",
+          "declared_by",
+          "events",
+          "counts",
+          "total",
+          "isolation",
+          "budget",
+          "context",
+          "updated_utc"
+        ],
+        "additionalProperties": true,
+        "description": "Subset of full snapshot: events=[], tasks contain only id/status/elapsed_s/attempts/exit_code/filesystem_branch/filesystem_commit."
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": true
+      }
+    }
+  }
+}
