@@ -42,6 +42,8 @@ def _decode_record(line: bytes) -> dict:
         raise CursorConflict("malformed complete JSONL record") from exc
     if not isinstance(event, dict):
         raise CursorConflict("trace record must be a JSON object")
+    if "seq" not in event or "session_id" not in event:
+        raise CursorConflict("legacy or unsequenced trace record")
     if (not isinstance(event.get("event"), str) or
             type(event.get("time_ns")) is not int or
             type(event.get("agent_path")) is not list or
