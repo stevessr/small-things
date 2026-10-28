@@ -12,6 +12,11 @@
 
 ## B. Host 与 UI
 
+- [ ] Supervisor JSONL 中的 `seq` 连续、`session_id` 单次稳定、动态任务 `agent_path` 可追溯。
+- [ ] Host IPC 有同一序列上的 `control_requested/control_handled`，且绝不持久化 token/消息正文/Context。
+- [ ] 严格游标 `/api/records` 在旧 Trace、缺号、会话轮换时返回 409，不把重放误当作继续执行。
+- [ ] `agentos.capabilities` 不把 conditional/unsupported 视为支持；`--require-capability` 能在执行前拒绝。
+
 - [ ] Ubuntu + openEuler 的 Harness CI 工作流完全成功。
 - [ ] Host Demo 与动态声明 Demo 均成功，Report/Trace 可通过 JSON 解析。
 - [ ] 失败注入可使关联子任务 `BLOCKED`，无关分支完成。

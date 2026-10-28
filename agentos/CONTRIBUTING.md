@@ -27,6 +27,8 @@ node --check agentos/ui/app.js
 | --- | --- |
 | 增减 `AgentSpec`、`Budget` 字段 | `docs/configuration.md`、`docs/agentos-plan.schema.json`、`test_docs.py` |
 | 新增 Broker `op` | `docs/configuration.md`（IPC 表）、`tests/test_runtime.py` |
+| 调整 Supervisor 事件游标、session 身份或 IPC 处理证据 | `docs/trace-format.md`、`docs/oar-comparison.md`、`docs/openapi.json`、`tests/test_record_stream.py` |
+| 改变 Host/LayerFS 特性支持状态 | `agentos/capabilities.py`、`docs/capabilities.md`、`tests/test_capabilities.py` |
 | 新增/修改生命周期事件 | `docs/trace-format.md`、`tests/test_docs.py`、Web/GPUI UI 消费端 |
 | 新增本机 HTTP 端点/字段 | `docs/openapi.json`、`docs/api-reference.md`、`tests/test_harness_ui.py` |
 | 修改 inotify/SSE/GPUI | `docs/harness-ui.md`、`ui-gpui/README.md`，标注是否引入定时数据轮询 |

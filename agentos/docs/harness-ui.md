@@ -51,6 +51,10 @@ python3 -m agentos.harness_run examples/agent-declarations.json \
 
 `/api/state?view=summary` 的“轻量”指**传输负载裁剪**；服务端首次读取或文件发生变化时会解析 Report/Trace 并建立进程内快照缓存；后续同版本的分页/详情请求复用缓存。目前尚未对服务端事件数组或 DAG 建立持久索引，不要把此 API 误认为 O(1) 读盘。
 
+## 有序事实重放
+
+`GET /api/records?limit=100` 返回 Supervisor 观察到的事件记录与 `next_seq/session_id/has_more`；增量读取需提供先前的 `session_id` 与 `after`。本端点既不增加状态刷新轮询，也不提供任务写权限。游标请求无足够证据时返回 409，而不是遗漏或伪造历史。详见 [Trace 契约](trace-format.md) 和 [OAR 对照](oar-comparison.md)。
+
 ## 事件驱动变化通知
 
 ```mermaid
