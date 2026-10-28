@@ -1,0 +1,8 @@
+{
+  "budget": {"cpu_units": 2, "memory_mib": 512, "max_tasks": 16},
+  "tasks": [
+    {"id": "plan", "kind": "model", "argv": ["python3", "-m", "agentos.demo_worker", "plan"], "memory_mib": 128},
+    {"id": "research", "kind": "tool", "deps": ["plan"], "argv": ["python3", "-m", "agentos.demo_worker", "research"], "memory_mib": 128},
+    {"id": "report", "kind": "model", "deps": ["research"], "argv": ["python3", "-m", "agentos.demo_worker", "report"], "memory_mib": 128}
+  ]
+}

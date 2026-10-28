@@ -1,0 +1,41 @@
+name: AgentOS Harness
+on:
+  push:
+    branches: [harness]
+    paths:
+      - 'agentos/**'
+      - '.github/workflows/agentos-harness.yml'
+  pull_request:
+    paths:
+      - 'agentos/**'
+      - '.github/workflows/agentos-harness.yml'
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agentos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit and integration tests
+        run: python -m unittest discover -s tests -v
+      - name: End-to-end multi-Agent scenario
+        run: python -m agentos.cli examples/demo.json --report /tmp/agentos-report.json --trace /tmp/agentos-trace.jsonl
+
+  openeuler:
+    runs-on: ubuntu-latest
+    container:
+      image: openeuler/openeuler:24.03-lts-sp4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Python on openEuler
+        run: dnf install -y python3
+      - name: openEuler kernel-independent supervisor tests
+        run: cd agentos && python3 -m unittest discover -s tests -v
+      - name: openEuler end-to-end multi-Agent scenario
+        run: cd agentos && python3 -m agentos.cli examples/demo.json
