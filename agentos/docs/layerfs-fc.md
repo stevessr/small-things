@@ -1,5 +1,7 @@
 # LayerFS v1.1.0 + Function Calling Checkpoints (FC)
 
+> 版本标注：AgentOS Harness v0.4，参考 LayerFS SDK v1.1.0。返回的 Commit/Branch 需在真实环境验证；当前 CI 使用模拟 SDK。
+
 ## 实现
 
 使用 [Ephemeral-AI-Lab/layerfs](https://github.com/Ephemeral-AI-Lab/layerfs)
@@ -143,3 +145,20 @@ Agent 成功执行时提交文件系统后，桥接器从其 Branch 读取任务
 实机 openEuler 连接 SDK + daemon + Docker，进行文件写入/故障回退/并行冲突
 端到端评测；之后加入 FUSE 投影与 cgroup 配额统一控制、可跨 Docker 的 IPC
 及更细的符号级回退（AST/函数范围恢复）。
+
+## 恢复决策流程
+
+1. **先查报告**：从 `report.tasks[task_id].filesystem_branch` / `filesystem_commit` 提取真实分支和提交标识。失败/未运行任务可能没有 Commit。
+2. **查历史**：执行 `python3 -m agentos.layerfs_fc --mode history --branch BRANCH`，确认期望的不可变 Checkpoint。
+3. **确定恢复粒度**：`rewind` 从 Commit fork 整棵树；`files` 只恢复指定 1–64 个 UTF-8 文件。两者均不会覆写原 Branch。
+4. **核对结果**：比较新 Branch 的文件、依赖分支、编译结果后，再决定是否迁移工作流；不要把返回新 Branch 等同于已经发布。
+5. **检查外部副作用**：HTTP 请求、邮件、远端数据库事务不在 LayerFS 文件历史中。必须独立处理业务补偿、幂等与撤销。
+
+## 示例环境与验证级别
+
+- 最小 Host 演示：`python3 -m agentos.plan_lint examples/layerfs-demo.json`（只校验图，不调用 SDK）。
+- 模拟协议测试：`python3 -m unittest tests.test_layerfs -v`（无需真实 Docker/FUSE，但需要 Node.js）。
+- 实机端到端：配置 `LAYERFS_PROJECT`、可解析的 `@layerfs/agent`、daemon、Store、Docker 镜像/Volume，运行成功/失败/合并/FC 文件回退，保留输出与可复现环境记录。
+- 只有完成实机验证后，才能宣称真实 LayerFS 的 FUSE 投影、Merge 冲突与事务持久性已被验证。
+
+参见 [任务清单格式](configuration.md)、[安全边界](security.md)、[测试与评估](testing.md)。
