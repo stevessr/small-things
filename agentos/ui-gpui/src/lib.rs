@@ -112,9 +112,21 @@ fn get_local(port: u16, path: &str) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
-/// Fetch small task/status index, NOT stdout/stderr. Detail is lazy on selection.
+/// Compatibility helper: unpaginated summary for older clients.
 pub fn fetch_local(port: u16) -> Result<Snapshot, String> {
     parse_snapshot(&get_local(port, "/api/state?view=summary")?)
+}
+
+/// Server-side lazy pagination: transfer at most 40 task summaries per request.
+/// The returned `total` and `counts` describe the full runtime DAG.
+pub fn fetch_page(port: u16, page: usize) -> Result<Snapshot, String> {
+    let range = page_range(10000, page, 40);
+    let url = format!("/api/state?view=summary&offset={}&limit=40", range.start);
+    let snapshot = parse_snapshot(&get_local(port, &url)?)?;
+    if snapshot.tasks.len() > 40 {
+        return Err("server returned more than 40 task summaries".into());
+    }
+    Ok(snapshot)
 }
 
 pub fn fetch_task(port: u16, id: &str) -> Result<TaskDetail, String> {
@@ -187,6 +199,35 @@ mod tests {
         assert_eq!(page_range(90, 2, 999), 80..90);
         assert_eq!(page_range(90, usize::MAX, 999), 90..90);
         assert_eq!(page_range(0, 4, 0), 0..0);
+    }
+
+    #[test]
+    fn paginated_fetch_requests_only_selected_page_and_keeps_total() {
+        use std::net::TcpListener;
+        use std::thread;
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let handle = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let mut buffer = [0u8; 1024];
+            let count = socket.read(&mut buffer).unwrap();
+            let request = String::from_utf8_lossy(&buffer[..count]);
+            assert!(request.starts_with(
+                "GET /api/state?view=summary&offset=80&limit=40 HTTP/1.0"
+            ), "{request}");
+            let body = br#"{"total":135,"tasks":{"task_080":{"status":"running"}},"counts":{"running":1,"succeeded":134}}"#;
+            let header = format!(
+                "HTTP/1.0 200 OK\r\nContent-Length: {}\r\n\r\n",
+                body.len()
+            );
+            socket.write_all(header.as_bytes()).unwrap();
+            socket.write_all(body).unwrap();
+        });
+        let page = fetch_page(port, 2).unwrap();
+        assert_eq!(page.total, 135);
+        assert_eq!(page.tasks.len(), 1);
+        assert!(page.tasks.contains_key("task_080"));
+        handle.join().unwrap();
     }
 
     #[test]
