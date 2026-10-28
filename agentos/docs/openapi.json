@@ -735,7 +735,7 @@
           "records": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Event"
+              "$ref": "#/components/schemas/RecordedSupervisorEvent"
             }
           },
           "next_seq": {
@@ -746,6 +746,46 @@
             "type": "boolean"
           }
         }
+      },
+      "RecordedSupervisorEvent": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Event"
+          },
+          {
+            "type": "object",
+            "required": [
+              "seq",
+              "session_id",
+              "agent_path",
+              "time_ns",
+              "event"
+            ],
+            "properties": {
+              "seq": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "session_id": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{32}$"
+              },
+              "agent_path": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "time_ns": {
+                "type": "integer"
+              },
+              "event": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "description": "A complete verified supervisor fact returned by /api/records. Legacy /api/state event tails can lack cursor fields."
       }
     }
   }

@@ -126,6 +126,15 @@ class DocumentationContractTests(unittest.TestCase):
         self.assertEqual(params["after"]["schema"]["maximum"], MAX_CURSOR)
         self.assertIn("409", api["paths"]["/api/records"]["get"]["responses"])
 
+    def test_openapi_record_window_requires_authoritative_fields(self):
+        api = json.loads((ROOT / "docs" / "openapi.json").read_text())
+        schema = api["components"]["schemas"]
+        self.assertEqual(schema["RecordWindow"]["properties"]["records"]["items"]["$ref"],
+                         "#/components/schemas/RecordedSupervisorEvent")
+        required = schema["RecordedSupervisorEvent"]["allOf"][1]["required"]
+        self.assertTrue({"seq", "session_id", "agent_path", "time_ns", "event"}
+                        .issubset(required))
+
     def test_openapi_page_contract_matches_server_bounds(self):
         from agentos.harness_ui import MAX_PAGE_OFFSET, MAX_PAGE_SIZE
 
