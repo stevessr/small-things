@@ -1,5 +1,7 @@
 # Harness UI：API、SSE、Lazy Load 与原生 GPUI
 
+本机 HTTP 的完整响应/错误码见 [API 参考](api-reference.md)，机器可读接口为 [OpenAPI 3.1](openapi.json)，JSONL 事件命名及单位见 [Trace 契约](trace-format.md)。
+
 ## 使用方式
 
 从 `agentos/` 目录：

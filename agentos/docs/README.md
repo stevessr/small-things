@@ -13,6 +13,14 @@
 | 运行失败 / 空白监控 / GPU 问题 | [排障手册](troubleshooting.md) |
 | 威胁模型与生产化缺口 | [安全与实现边界](security.md) |
 
+## 深入参考与可执行教程
+
+- [HTTP API 参考](api-reference.md) · [OpenAPI 3.1](openapi.json) · [事件/Trace 格式](trace-format.md)
+- [能力成熟度矩阵](capabilities.md) · [实验复现与结果记录模板](reproducibility.md)
+- [可执行教程目录](tutorials/README.md)：[Host 动态 DAG](tutorials/01-host-dynamic-dag.md)、[SSE/GPUI](tutorials/02-event-driven-ui.md)、[LayerFS/FC](tutorials/03-layerfs-fc.md)
+- [架构决策记录 ADR](adr/README.md)
+- [贡献与 PR 检查清单](../CONTRIBUTING.md)
+
 ## 最短验证路径
 
 ```bash

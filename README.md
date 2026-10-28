@@ -15,6 +15,8 @@
 - [排查指南](agentos/docs/troubleshooting.md)
 - [安全边界](agentos/docs/security.md)
 
+其他入口：[贡献指南](agentos/CONTRIBUTING.md)、[API/OpenAPI](agentos/docs/api-reference.md)、[事件格式](agentos/docs/trace-format.md)、[教程](agentos/docs/tutorials/README.md)、[实验模板](agentos/docs/reproducibility.md)。
+
 最小预检：
 
 ```bash

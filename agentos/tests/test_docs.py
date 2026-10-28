@@ -18,7 +18,7 @@ from agentos.models import AgentResult, Status
 ROOT = Path(__file__).resolve().parent.parent
 MARKDOWN = [ROOT / "README.md", ROOT / "CONTRIBUTING.md",
             ROOT / "ui-gpui" / "README.md",
-            *sorted((ROOT / "docs").glob("*.md"))]
+            *sorted((ROOT / "docs").rglob("*.md"))]
 LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 TICK = chr(96)
 JSON_FENCE = re.compile(r"(?m)^" + TICK * 3 + r"json\s*\n(.*?)^" +

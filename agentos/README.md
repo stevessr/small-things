@@ -56,6 +56,12 @@ LayerFS 的预算字段尚未映射为 Docker cgroup 真实配额，Host IPC 未
 - [安全边界和未实现能力](docs/security.md)
 - [GPUI 原生查看器独立说明](ui-gpui/README.md)
 
+## 深入文档
+
+- [贡献指南](CONTRIBUTING.md) · [API/事件规范](docs/api-reference.md) · [机器可读 OpenAPI](docs/openapi.json)
+- [完整 Trace 语义](docs/trace-format.md) · [能力成熟度](docs/capabilities.md)
+- [可执行教程](docs/tutorials/README.md) · [ADR](docs/adr/README.md) · [实验复现模板](docs/reproducibility.md)
+
 ## 测试与开发
 
 ```bash

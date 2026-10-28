@@ -33,6 +33,10 @@ python3 -m bench.benchmark --tasks 6 --parallel 3 --sleep 0.05 --trials 2
 
 ## 3. 文档可执行性要求
 
+修改 HTTP 端点或任务数据时，文档契约测试将对比 [OpenAPI](openapi.json) 与 [真实路由](../agentos/harness_ui.py)、[AgentResult](../agentos/models.py)；新增事件时会检查 [事件字典](trace-format.md) 与 Runtime `_event` 字面量。教程入口详见 [可执行教程](tutorials/README.md)，性能结论使用 [实验复现模板](reproducibility.md)。
+
+
+
 - 每个 `examples/*.json` 中的执行计划都应能通过 `python3 -m agentos.plan_lint`；`examples/harness-ui-sample.json` 是**终局报告**，例外。
 - 若新增 `AgentSpec` 字段，修改 `docs/configuration.md` 的字段表，并新增合法/拒绝示例。
 - 若新增 CLI 操作，更新 `docs/deployment.md`、`docs/troubleshooting.md` 和测试的 `--help` smoke check。
