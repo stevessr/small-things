@@ -12,7 +12,7 @@
 | 精确 Agent 归属 | `agent_path` 是声明者链；`task` 是实际任务 ID；初始 Task 为 `[]` | 没有原生 coding-agent session graph；DAG deps 与 agent_path 是不同关系 |
 | Replay 和 native Resume 是两回事 | 只读 `/api/records` 游标窗口；缺失、截断、跨会话或旧格式返回 409 | 无法从 JSONL 恢复进程内存、模型会话和工具调用 |
 | 能力不静默降级 | `agentos.capabilities` 返回 supported/conditional/unsupported 与证据；`require` 返回具名拒绝 | LayerFS 真正 Docker/FUSE 未在 CI 实机验证；声明不证明环境可用 |
-| 数据与控制边界 | GPUI/Web 依旧只读、`/api/changes` 仍只通知变化；`/api/records` 只读证据 | 尚未统一收录所有 IPC 的 request/response，未采用 OAR 的原生框架协议 |
+| 数据与控制边界 | Host IPC 写入 `control_requested/control_handled`，有 request_id 关联；不记录 token/消息正文；GPUI/Web 依旧只读 | `handled` 只证明 Broker 处理，不证明客户端收到回复或目标 Agent 消费；未采用 OAR 的原生框架协议 |
 | Liveness 不猜测 | 保留进程真实 `started/finished/blocked` 事实；没有事件不会凭心跳造出成功结果 | 不凭“长时间无消息”识别 hung 模型；暂无逐 Tool Span 心跳与 stalled reducer |
 
 ## 执行示例
@@ -46,7 +46,7 @@ curl -fsS 'http://127.0.0.1:8765/api/records?limit=100'
 | 阶段 | 目标 | 必须有的验证 |
 | --- | --- | --- |
 | A（当前） | 有序 Supervisor 事实、归属、严格游标与能力声明 | sequence/rotation/gap/legacy/HTTP/多级 Agent 单测及 Ubuntu/openEuler CI |
-| B | 将 Host IPC 控制调用显式表示为 request/response，并以 requestId 关联 | 不泄露 Token/Env/消息正文；异常掉电前请求可以无响应但不可伪造成功 |
+| B（已实现 Host 最小版） | IPC 请求和 Broker 处理结果以 request_id 关联 | 不泄露 Token/Env/消息正文；不把处理成功当作传输已送达；还缺原生 toApp 双向请求 |
 | C | 根据每种原生 provider 协议实现可选 adapter，例如 ACP 或 OAR TS 独立进程桥接 | 真实 native 帧、生命周期、resume 能力由 SDK 证实；与 AgentOS DAG/task ID 分离 |
 | D | 会话记录持久化索引和流式重放（不受 Trace 尾窗限制） | crash 后数据一致性、损坏检测、增量 replay 规模与延迟测试 |
 

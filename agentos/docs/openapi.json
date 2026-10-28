@@ -435,7 +435,9 @@
               "retry",
               "declaration_rejected",
               "finished",
-              "blocked"
+              "blocked",
+              "control_requested",
+              "control_handled"
             ]
           },
           "task": {

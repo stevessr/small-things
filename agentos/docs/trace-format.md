@@ -13,6 +13,9 @@
 | `declaration_rejected` | Manifest 校验或动态声明被拒绝 | `task, error` |
 | `finished` | 任务进入 SUCCEEDED 或 FAILED | `task, status, attempts, elapsed_s, error, resource_metrics` |
 | `blocked` | 上游失败导致尚未启动的任务阻断 | `task` |
+| `control_requested` | Host IPC 已认证请求进入 Broker | `task, request_id, op`（无 token / payload / context） |
+| `control_handled` | Broker 已处理请求，结果已确定，但不证明对端收到响应 | `task, request_id, accepted, code` |
+
 
 例如：
 
