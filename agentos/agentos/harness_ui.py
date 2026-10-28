@@ -230,7 +230,7 @@ def create_handler(report_path: Path | None, trace_path: Path | None,
             self.end_headers()
             version = changes.version
             try:
-                self.wfile.write(f"data: {version}\\n\\n".encode())
+                self.wfile.write(f"data: {version}\n\n".encode())
                 self.wfile.flush()
                 while changes.active:
                     next_version = changes.wait(version)
@@ -238,7 +238,7 @@ def create_handler(report_path: Path | None, trace_path: Path | None,
                         break
                     if next_version > version:
                         version = next_version
-                        self.wfile.write(f"data: {version}\\n\\n".encode())
+                        self.wfile.write(f"data: {version}\n\n".encode())
                     else:
                         self.wfile.write(b": heartbeat\n\n")
                     self.wfile.flush()
