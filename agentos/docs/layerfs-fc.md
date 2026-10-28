@@ -157,7 +157,7 @@ Agent 成功执行时提交文件系统后，桥接器从其 Branch 读取任务
 ## 示例环境与验证级别
 
 - 最小 Host 演示：`python3 -m agentos.plan_lint examples/layerfs-demo.json`（只校验图，不调用 SDK）。
-- 模拟协议测试：`python3 -m unittest tests.test_layerfs -v`（无需真实 Docker/FUSE，但需要 Node.js）。
+- 模拟协议测试：`python3 -m unittest discover -s tests -p 'test_layerfs.py' -v`（无需真实 Docker/FUSE，但需要 Node.js）。
 - 实机端到端：配置 `LAYERFS_PROJECT`、可解析的 `@layerfs/agent`、daemon、Store、Docker 镜像/Volume，运行成功/失败/合并/FC 文件回退，保留输出与可复现环境记录。
 - 只有完成实机验证后，才能宣称真实 LayerFS 的 FUSE 投影、Merge 冲突与事务持久性已被验证。
 

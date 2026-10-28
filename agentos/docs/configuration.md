@@ -10,6 +10,8 @@ python3 -m agentos.plan_lint examples/agent-declarations.json --format json
 
 预检只读取 JSON，验证配置、名称、图、租户与调度预约；不启动 Agent、不创建 LayerFS Sandbox、不打开 IPC Socket。成功返回 **0**，错误返回 **2**。`--format json` 输出 `valid`、`tasks`、`budget`、`topological_order`、`edges` 和 `tenants`。拓扑次序只是一个合法执行顺序，**不是**对调度器执行时序的保证。
 
+可使用 [AgentOS 计划 JSON Schema](agentos-plan.schema.json) 为编辑器提供字段提示和静态类型校验；**不要将 `"$schema"` 字段添加到 Plan 本身**，当前 CLI 会将它视为未知顶层字段。Schema 无法表达 DAG 无环与跨租户关系，因此保存前仍需运行 `plan_lint`。
+
 ## 2. Plan JSON
 
 完整最小结构：

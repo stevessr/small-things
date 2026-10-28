@@ -64,6 +64,20 @@ class DocumentationContractTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(path, readme)
 
+    def test_json_schema_matches_agent_spec_and_budget_fields(self):
+        from agentos.models import AgentSpec, Budget
+
+        schema = json.loads((ROOT / "docs" / "agentos-plan.schema.json").read_text())
+        self.assertEqual(schema["type"], "object")
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(set(schema["properties"]), {"budget", "tasks"})
+        task_fields = set(schema["$defs"]["task"]["properties"])
+        budget_fields = set(schema["$defs"]["budget"]["properties"])
+        self.assertEqual(task_fields, set(AgentSpec.__dataclass_fields__))
+        self.assertEqual(budget_fields, set(Budget.__dataclass_fields__))
+        self.assertEqual(schema["$defs"]["task"]["properties"]["retries"]["maximum"], 5)
+        self.assertEqual(schema["$defs"]["budget"]["properties"]["max_tasks"]["maximum"], 10000)
+
     def test_documented_cli_help_is_runnable_without_side_effects(self):
         for module in ("agentos.plan_lint", "agentos.doctor", "agentos.cli",
                        "agentos.harness_run", "agentos.harness_ui",

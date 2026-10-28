@@ -46,7 +46,7 @@ LayerFS 的预算字段尚未映射为 Docker cgroup 真实配额，Host IPC 未
 ## 文档导航
 
 - [完整文档入口](docs/README.md)
-- [配置 JSON 与动态任务声明 / IPC 协议](docs/configuration.md)
+- [配置 JSON 与动态任务声明 / IPC 协议](docs/configuration.md)、[JSON Schema](docs/agentos-plan.schema.json)
 - [设计架构、状态机、后端差异](docs/architecture.md)
 - [openEuler / Linux / Wayland 部署运行](docs/deployment.md)
 - [Harness UI REST/SSE、Lazy Load、GPUI](docs/harness-ui.md)

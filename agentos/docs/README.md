@@ -5,7 +5,7 @@
 | 场景 | 文档 |
 | --- | --- |
 | 先启动一次任务 / 打开监控 | [项目 README](../README.md)、[部署与运行](deployment.md) |
-| 编写 DAG / 动态声明任务 | [计划与协议参考](configuration.md) |
+| 编写 DAG / 动态声明任务 | [计划与协议参考](configuration.md)、[JSON Schema](agentos-plan.schema.json) |
 | 了解架构和状态机 | [架构与数据流](architecture.md) |
 | 使用 Web UI / GPUI / SSE | [Harness UI 协议与运维](harness-ui.md)、[GPUI 专项](../ui-gpui/README.md) |
 | 安装 LayerFS、查历史、FC 文件回退 | [LayerFS + FC](layerfs-fc.md) |
