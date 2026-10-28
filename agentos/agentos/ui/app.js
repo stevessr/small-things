@@ -6,6 +6,7 @@ let active = null;
 let filter = "all";
 let search = "";
 let inFlight = false;
+let dirty = false;
 const labels = {
   pending: "等待中", running: "运行中", succeeded: "已完成",
   failed: "失败", blocked: "已阻断"
@@ -245,7 +246,9 @@ function renderEvents() {
 function selectTask(id){active=id;renderGraph();renderDetails();renderTable();}
 function render(){if(!state)return;updateMetrics(state);renderGraph();renderDetails();renderTable();renderEvents();}
 async function poll(){
-  if(inFlight)return;inFlight=true;
+  // Coalesce bursts of inotify events without dropping the latest state.
+  if(inFlight){dirty=true;return;}
+  inFlight=true;
   try {
     const response=await fetch("/api/state",{cache:"no-store",headers:{"Accept":"application/json"}});
     if(!response.ok)throw Error("HTTP "+response.status);
@@ -257,7 +260,10 @@ async function poll(){
   }catch(error){
     const connection=$("connection");connection.classList.add("offline");connection.lastChild.textContent="连接失败";
     $("updated").textContent=String(error.message||error);
-  }finally{inFlight=false;}
+  }finally{
+    inFlight=false;
+    if(dirty){dirty=false;queueMicrotask(poll);}
+  }
 }
 $("search").addEventListener("input",e=>{search=e.target.value.toLowerCase().trim();renderTable();});
 $("filter").addEventListener("change",e=>{filter=e.target.value;renderTable();});
