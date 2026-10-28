@@ -190,8 +190,18 @@ def build_state(report: dict, events: list[dict]) -> dict:
         status = task.get("status")
         if status in counts:
             counts[status] += 1
+    latest = events[-1] if events else {}
+    # Projection never manufactures a cursor for legacy traces. When a final
+    # report exists, its session identity and cursor are authoritative.
+    session_id = report.get("session_id", latest.get("session_id"))
+    last_seq = report.get("last_seq", latest.get("seq"))
+    if not isinstance(session_id, str):
+        session_id = None
+    if type(last_seq) is not int:
+        last_seq = None
     return {
-        "schema": 1, "tasks": tasks, "dag": dag,
+        "schema": 1, "session_id": session_id, "last_seq": last_seq,
+        "tasks": tasks, "dag": dag,
         "declared_by": declared_by, "events": events,
         "counts": counts, "total": len(tasks),
         "isolation": report.get("isolation", "trace-only"),
