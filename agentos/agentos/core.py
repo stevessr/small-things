@@ -43,7 +43,8 @@ class AgentRuntime:
         self.cgroups = CgroupV2(cgroup_root, required=require_cgroup)
         self._temp = tempfile.TemporaryDirectory(prefix="agentos-")
         self.bus = AgentBus(Path(self._temp.name) / "bus.sock",
-                            self.context, self.tasks.get, self._spawn, self._declare_tasks)
+                            self.context, self.tasks.get, self._spawn, self._declare_tasks,
+                            audit=self._audit_control)
         self._started = False
         self.declared_by: dict[str, str] = {}
         for task in tasks:
@@ -77,6 +78,14 @@ class AgentRuntime:
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("a", encoding="utf-8") as output:
                 output.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+    def _audit_control(self, phase: str, **fields) -> None:
+        # The broker observed handling, not transport delivery or target
+        # execution. Do not store tokens, message payloads or context values.
+        if phase == "requested":
+            self._event("control_requested", **fields)
+        elif phase == "handled":
+            self._event("control_handled", **fields)
 
     def add(self, task: AgentSpec, initial: bool = False) -> None:
         if task.id in self.tasks:
