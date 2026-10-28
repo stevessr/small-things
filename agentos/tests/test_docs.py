@@ -141,7 +141,8 @@ class DocumentationContractTests(unittest.TestCase):
     def test_documented_cli_help_is_runnable_without_side_effects(self):
         for module in ("agentos.plan_lint", "agentos.doctor", "agentos.cli",
                        "agentos.harness_run", "agentos.harness_ui",
-                       "agentos.layerfs_fc", "agentos.layerfs_init"):
+                       "agentos.layerfs_fc", "agentos.layerfs_init",
+                       "agentos.sessions"):
             with self.subTest(module=module):
                 completed = subprocess.run(
                     [sys.executable, "-m", module, "--help"],

@@ -37,6 +37,8 @@ node --check agentos/ui/app.js
 
 变更记录必须按 [CHANGELOG](CHANGELOG.md) 更新，合并/答辩前按照 [发布验收检查清单](docs/release-checklist.md) 逐项核对。机器可读的 API `info.version` 必须与 `pyproject.toml` 包版本一致。
 
+每次涉及历史记录和恢复语义的修改，应同步 [会话保留和 SHA-256 验证](docs/run-sessions.md)、`tests/test_harness_runner.py` 和 [复现实验协议](docs/reproducibility.md)。不要把本地摘要视为独立签名，也不要把历史视为可自动续跑的执行状态。
+
 ## 3. 如何写可复现问题
 
 提交 Issue/PR 时提供：Git SHA、OS/内核、Python/Node/Rust 版本、运行命令（去除秘密）、最小 Plan JSON、完整报错、实际状态/预期状态；涉及 LayerFS 时附上 SDK/daemon/Docker 版本、是否真实 Store 与 FUSE；涉及 GPUI 时附 Wayland/X11、分辨率缩放、Vulkan 驱动与是否多屏。

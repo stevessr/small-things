@@ -18,6 +18,8 @@
 | Workload | 完整 Plan JSON、工作目录、输入样本大小、重试超时、随机种子 |
 | Evidence | Report、JSONL Trace、测试命令及标准输出/失败日志 |
 
+推荐使用 `--runs-root .agentos/runs` 保存每次单独实验的状态与完整性校验文件；具体步骤见 [会话保留与核验](run-sessions.md)。任务结果退出码不等同于记录完整性，SHA-256 只能检测意外损坏，不构成签名。
+
 ## 2. 复现步骤（Host）
 
 ```bash

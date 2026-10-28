@@ -14,6 +14,7 @@
 | LayerFS FC 回退 | 模拟 SDK 协议验证 | 只 fork 新分支，不回滚 API/DB/邮件副作用 |
 | LayerFS Docker cgroup 真配额 | 待实现 | 预算目前仅为调度控制面预约 |
 | Host IPC 透传至 LayerFS Docker | 待实现 | Host 的 `send/recv/context` 不可直接跨 Docker 使用 |
+| 独立实验会话和 SHA-256 校验 | 已实现，CI 验证 | [会话管理](run-sessions.md)，不是数字签名或恢复调度 |
 | Web DAG/日志/FC UI | 已实现，HTTP+测试覆盖 | 只读、localhost、非公网服务 |
 | Linux inotify → SSE | 已实现，CI 验证 | 非 Linux/文件父目录不匹配时可能无法监听 |
 | 原生 GPUI Lazy Load 和 40 项分页 | Rust 测试与编译通过 | 没有实机 Wayland/Vulkan 截图验证 |

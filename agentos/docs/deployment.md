@@ -54,6 +54,16 @@ python3 -m agentos.harness_ui \
 
 UI 仅显示记录的数据，不提供任意路径读写、启动任务或点击回退操作；因此可用于观测，但不能代替具备事务权限的独立运维命令。
 
+## 2.1 保留每次独立运行的历史
+
+```bash
+python3 -m agentos.harness_run examples/agent-declarations.json \
+  --runs-root .agentos/runs --port 8765 --exit-after-run
+python3 -m agentos.sessions list --root .agentos/runs
+```
+
+历史会话由时间与随机后缀命名，目录权限为 0700，文件权限为 0600；运行结束后写入状态、退出码与报告/Trace SHA-256。可执行 `python3 -m agentos.sessions verify --session .agentos/runs/实际目录名` 检查完整性。见 [运行会话手册](run-sessions.md)。
+
 ## 3. Linux Wayland 原生 GPUI
 
 ```bash

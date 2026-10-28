@@ -13,6 +13,10 @@
 | 运行失败 / 空白监控 / GPU 问题 | [排障手册](troubleshooting.md) |
 | 威胁模型与生产化缺口 | [安全与实现边界](security.md) |
 
+## 独立运行证据
+
+[运行会话、SHA-256 完整性验证与历史浏览](run-sessions.md)：`--runs-root` 不覆盖已有结果，`agentos.sessions` 只读列出与检查。
+
 ## 深入参考与可执行教程
 
 - [HTTP API 参考](api-reference.md) · [OpenAPI 3.1](openapi.json) · [事件/Trace 格式](trace-format.md)

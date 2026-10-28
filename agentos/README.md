@@ -56,6 +56,16 @@ LayerFS 的预算字段尚未映射为 Docker cgroup 真实配额，Host IPC 未
 - [安全边界和未实现能力](docs/security.md)
 - [GPUI 原生查看器独立说明](ui-gpui/README.md)
 
+## 独立运行会话与复现
+
+```bash
+python3 -m agentos.harness_run examples/agent-declarations.json \
+  --runs-root .agentos/runs --port 8765 --exit-after-run
+python3 -m agentos.sessions list --root .agentos/runs
+```
+
+每次创建 0700 独立目录，写入 0600 报告、Trace 与 Manifest；支持 SHA-256 完整性校验，不会覆盖历史运行。参见 [会话保留和验证](docs/run-sessions.md)。
+
 ## 深入文档
 
 - [贡献指南](CONTRIBUTING.md) · [API/事件规范](docs/api-reference.md) · [机器可读 OpenAPI](docs/openapi.json)

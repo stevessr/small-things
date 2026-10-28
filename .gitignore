@@ -1,2 +1,6 @@
 node_modules
 .wrangler
+
+# Local AgentOS run sessions, traces, reports and context artifacts
+.agentos/
+agentos/.agentos/

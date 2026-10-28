@@ -31,6 +31,8 @@ python3 -m bench.benchmark --tasks 6 --parallel 3 --sleep 0.05 --trials 2
 
 注意区分“模拟 LayerFS 协议通过”与“实机文件系统已验证”。CI 可以证明 Python 和 Rust 代码编译、纯用户态逻辑正确，不证明 sandbox 具有强隔离或 Store 具备掉电持久性。
 
+新增 `tests/test_harness_runner.py` 的会话测试覆盖：互不覆盖的历史目录、0600/0700 权限、端口冲突不覆盖旧报告、失败任务记录、SHA-256 篡改检测。CLI `agentos.sessions` 支持只读列出/核验，见 [运行会话指南](run-sessions.md)。
+
 ## 3. 文档可执行性要求
 
 修改 HTTP 端点或任务数据时，文档契约测试将对比 [OpenAPI](openapi.json) 与 [真实路由](../agentos/harness_ui.py)、[AgentResult](../agentos/models.py)；新增事件时会检查 [事件字典](trace-format.md) 与 Runtime `_event` 字面量。教程入口详见 [可执行教程](tutorials/README.md)，性能结论使用 [实验复现模板](reproducibility.md)。
