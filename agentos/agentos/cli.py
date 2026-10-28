@@ -34,7 +34,7 @@ def main() -> int:
             runtime = LayerFSRuntime(specs, budget,
                                      trace_path=args.trace)
         else:
-            runtime = AgentRuntime(specs, Budget.parse(plan.get("budget", {})),
+            runtime = AgentRuntime(specs, budget,
                                    context_path=args.context_db, cgroup_root=args.cgroup_root,
                                    require_cgroup=args.require_cgroup, trace_path=args.trace)
         results = asyncio.run(runtime.run())
