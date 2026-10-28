@@ -25,6 +25,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate client JavaScript syntax
+        run: node --check ui/app.js && node --check agentos/layerfs_bridge.mjs
       - name: Unit and integration tests
         run: python -m unittest discover -s tests -v
       - name: End-to-end multi-Agent scenario
@@ -44,6 +46,8 @@ jobs:
         run: dnf install -y python3
       - name: Install Node.js for mocked bridge testing
         run: dnf install -y nodejs npm
+      - name: Validate UI client and LayerFS bridge JavaScript
+        run: cd agentos && node --check ui/app.js && node --check agentos/layerfs_bridge.mjs
       - name: openEuler kernel-independent supervisor tests
         run: cd agentos && python3 -m unittest discover -s tests -v
       - name: openEuler end-to-end multi-Agent scenario

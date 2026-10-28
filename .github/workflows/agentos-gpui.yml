@@ -1,0 +1,28 @@
+name: AgentOS GPUI Native
+on:
+  workflow_dispatch:
+  push:
+    branches: [harness]
+    paths:
+      - 'agentos/ui-gpui/**'
+      - '.github/workflows/agentos-gpui.yml'
+jobs:
+  gpui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Native GPUI dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y pkg-config clang cmake libfontconfig1-dev libfreetype6-dev \
+            libwayland-dev libxkbcommon-dev libx11-dev libxcb1-dev libxcb-keysyms1-dev \
+            libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libxkbcommon-x11-dev \
+            libvulkan-dev libasound2-dev
+      - name: Headless snapshot protocol tests
+        run: cargo test --manifest-path agentos/ui-gpui/Cargo.toml --no-default-features --locked
+      - name: Check native GPUI frontend
+        run: cargo check --manifest-path agentos/ui-gpui/Cargo.toml --features desktop --locked
