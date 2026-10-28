@@ -87,9 +87,10 @@ class LayerFSClient:
 class LayerFSRuntime(AgentRuntime):
     """DAG supervisor with per-task LayerFS branches and Docker workspaces.
 
-    In v0.2 the Unix IPC broker is NOT projected into Docker; use purely
-    filesystem-based Agent tasks. Dynamic spawn/context IPC requires a later
-    explicitly bridged transport.
+    LayerFS agents can write a bounded JSON manifest at
+    AGENTOS_DECLARATIONS inside their Workspace; it is validated and admitted
+    atomically after the Agent's successful Commit. The Unix IPC broker is
+    NOT projected into Docker and cannot be used for other operations.
     """
 
     def __init__(self, tasks: list[AgentSpec], budget: Budget | None = None,
@@ -109,12 +110,30 @@ class LayerFSRuntime(AgentRuntime):
                 timeout_s=spec.timeout_s + 120)
             metrics = {"layerfs_branch": result.get("branch"),
                        "layerfs_commit": result.get("commit"),
+                       "layerfs_declarations": result.get("declarations"),
                        "isolation": "LayerFS Docker sandbox (container quota not enforced)"}
             return (result["exit_code"], result.get("stdout", ""),
                     result.get("stderr", ""), result.get("error", ""), metrics)
         except (LayerFSFailure, OSError) as exc:
             # Unknown commit state must not be blindly replayed.
             return None, "", "", str(exc), {"layerfs_unknown": True}
+
+    async def _after_success(self, spec: AgentSpec, result: AgentResult) -> None:
+        manifest = result.resource_metrics.pop("layerfs_declarations", None)
+        if manifest is None:
+            return
+        if not isinstance(manifest, str) or len(manifest.encode("utf-8")) > 60 * 1024:
+            raise ValueError("invalid LayerFS declaration payload")
+        try:
+            content = json.loads(manifest)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"malformed LayerFS declaration JSON: {exc.msg}") from exc
+        if not isinstance(content, dict) or set(content) != {"version", "tasks"}:
+            raise ValueError("manifest must contain exactly version and tasks")
+        if type(content["version"]) is not int or content["version"] != 1:
+            raise ValueError("unsupported declaration manifest version")
+        ids = await self._declare_tasks(spec.id, content["tasks"])
+        result.resource_metrics["declared_tasks"] = ids
 
     async def _execute(self, spec: AgentSpec) -> AgentResult:
         result = await super()._execute(spec)

@@ -8,6 +8,7 @@ import { randomBytes } from "node:crypto";
 
 const MAX_REQUEST = 128 * 1024;
 const MAX_OUTPUT = 512 * 1024;
+const MAX_DECLARATION = 60 * 1024;
 const validName = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
 
 function assert(condition, message) {
@@ -131,21 +132,41 @@ async function runAgent(lf, p) {
     const created = await lf.sandbox.create();
     sandbox = created.sandbox;
     workspace = await lf.workspace.mount(sandbox, branch);
-    // Run inside LayerFS's Docker sandbox. GNU timeout in the runtime image is mandatory.
+    // A task writes its own declaration manifest inside its isolated Workspace.
+    // The filename is unique per global task ID, so inherited parent manifests
+    // can never redeclare tasks when a child mounts a descendant Branch.
+    const relativeManifest = "/.agentos/declarations/" + p.id + ".json";
+    const absoluteManifest = workspace.path + relativeManifest;
     const cmd = p.argv.map(shellEscape).join(" ");
+    const command = "mkdir -p " + shellEscape(workspace.path + "/.agentos/declarations") +
+      " && export AGENTOS_DECLARATIONS=" + shellEscape(absoluteManifest) +
+      " AGENTOS_AGENT_ID=" + shellEscape(p.id) + " && exec " + cmd;
+    // Run inside LayerFS's Docker sandbox. GNU timeout in the runtime image is mandatory.
     const bounded = "timeout --signal=TERM --kill-after=2s " +
-      Math.ceil(p.timeout_s) + "s sh -c " + shellEscape("exec " + cmd);
+      Math.ceil(p.timeout_s) + "s sh -c " + shellEscape(command);
     const executed = await lf.workspace.exec(workspace, bounded, "AgentOS " + p.id);
     const exit = executed.exitCode;
     assert(Number.isInteger(exit), "LayerFS returned no exitCode");
     const good = exit === 0;
     // One DAG tool task is one Function Calling boundary with its own history commit.
     const committed = good ? await lf.workspace.commit(workspace, "FC: " + p.id) : null;
+    let declarations = null;
+    if (good) {
+      const stat = await statOrNull(lf.fs, branch, relativeManifest);
+      if (stat) {
+        assert(stat.type === "file" && stat.size <= MAX_DECLARATION,
+          "invalid Agent declaration manifest type or size");
+        declarations = await getText(lf.fs, branch, relativeManifest);
+        assert(Buffer.byteLength(declarations) <= MAX_DECLARATION,
+          "Agent declaration manifest exceeds 60 KiB");
+      }
+    }
     value = { exit_code: exit,
       stdout: (executed.stdout ?? "").slice(0, MAX_OUTPUT),
       stderr: (executed.stderr ?? "").slice(0, MAX_OUTPUT),
       branch: good ? branch : null,
       commit: committed?.commit?.id ?? committed?.head ?? null,
+      declarations,
       error: good ? "" : (exit === 124 ? "sandbox wall timeout" : "sandbox exit " + exit) };
   } catch (error) {
     issue = error;

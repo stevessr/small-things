@@ -23,6 +23,10 @@ export class LayerFS {
   };
   fs = {
     stat: async (ref, path) => {
+      if (ref.startsWith("ag-") &&
+          path === "/.agentos/declarations/" + process.env.LAYERFS_FAKE_DECLARE_AGENT + ".json" &&
+          process.env.LAYERFS_FAKE_DECLARATION !== undefined)
+        return { type: "file", size: Buffer.byteLength(process.env.LAYERFS_FAKE_DECLARATION) };
       if (ref === "checkpoint") {
         if (path === "/a.txt") return { type: "file", size: 7 };
         throw notFound();
@@ -35,6 +39,11 @@ export class LayerFS {
       throw notFound();
     },
     read: async (ref, path) => {
+      if (ref.startsWith("ag-") &&
+          path === "/.agentos/declarations/" + process.env.LAYERFS_FAKE_DECLARE_AGENT + ".json" &&
+          process.env.LAYERFS_FAKE_DECLARATION !== undefined)
+        return { text: process.env.LAYERFS_FAKE_DECLARATION, nextLine: null,
+                 truncated: false, lineTruncated: false };
       if (ref === "checkpoint" && path === "/a.txt")
         return { text: "before\n", nextLine: null, truncated: false, lineTruncated: false };
       throw notFound();
