@@ -70,7 +70,7 @@ fn connect(port: u16, path: &str) -> Result<BufReader<TcpStream>, String> {
     stream.set_read_timeout(Some(Duration::from_secs(25))).map_err(|e| e.to_string())?;
     stream.set_write_timeout(Some(Duration::from_secs(3))).map_err(|e| e.to_string())?;
     let request = format!(
-        "GET {path} HTTP/1.0\\r\\nHost: 127.0.0.1:{port}\\r\\nConnection: close\\r\\nAccept: application/json, text/event-stream\\r\\n\\r\\n"
+        "GET {path} HTTP/1.0\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\nAccept: application/json, text/event-stream\r\n\r\n"
     );
     stream.write_all(request.as_bytes()).map_err(|e| e.to_string())?;
     let mut reader = BufReader::new(stream);
@@ -82,7 +82,7 @@ fn connect(port: u16, path: &str) -> Result<BufReader<TcpStream>, String> {
     loop {
         line.clear();
         reader.read_line(&mut line).map_err(|e| e.to_string())?;
-        if line == "\\r\\n" || line == "\\n" {
+        if line == "\r\n" || line == "\n" {
             break;
         }
         if line.len() > 4096 {
@@ -129,7 +129,7 @@ pub fn watch_local_changes<F: FnMut()>(port: u16, mut changed: F) -> Result<(), 
     let mut line = Vec::new();
     loop {
         line.clear();
-        let bytes = reader.read_until(b'\\n', &mut line).map_err(|e| e.to_string())?;
+        let bytes = reader.read_until(b'\n', &mut line).map_err(|e| e.to_string())?;
         if bytes == 0 {
             return Err("SSE disconnected".into());
         }
