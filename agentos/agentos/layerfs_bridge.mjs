@@ -162,20 +162,34 @@ async function readInput() {
 
 try {
   const input = await readInput();
-  assert(["run", "fc"].includes(input.action), "unsupported LayerFS bridge action");
+  assert(["run", "fc", "init"].includes(input.action), "unsupported LayerFS bridge action");
   const modulePath = process.env.LAYERFS_AGENT_MODULE;
   // Local SDK checkout can be linked with node_modules; no npm-registry dependency.
   const pkg = modulePath ? await import(pathToFileURL(modulePath).href) : await import("@layerfs/agent");
   assert(typeof pkg.LayerFS?.open === "function", "LayerFS 1.1.0 SDK not found");
   const project = process.env.LAYERFS_PROJECT;
   assert(typeof project === "string" && project.length > 0, "LAYERFS_PROJECT missing");
-  const layerfs = await pkg.LayerFS.open(project);
-  try {
-    const value = input.action === "run"
-      ? await runAgent(layerfs, input) : await fcRestore(layerfs, input);
-    process.stdout.write(JSON.stringify({ ok: true, value }) + "\n");
-  } finally {
-    await layerfs.close();
+  if (input.action === "init") {
+    assert(typeof input.source === "string" && input.source.startsWith("/"),
+      "Init source must be an absolute path");
+    assert(Number.isSafeInteger(input.timeout_ms) &&
+      input.timeout_ms >= 1000 && input.timeout_ms <= 300000,
+      "invalid Init timeout");
+    const initialized = await pkg.LayerFS.init(project, input.source, input.timeout_ms);
+    try {
+      process.stdout.write(JSON.stringify({ ok: true, value: initialized.created }) + "\n");
+    } finally {
+      await initialized.close();
+    }
+  } else {
+    const layerfs = await pkg.LayerFS.open(project);
+    try {
+      const value = input.action === "run"
+        ? await runAgent(layerfs, input) : await fcRestore(layerfs, input);
+      process.stdout.write(JSON.stringify({ ok: true, value }) + "\n");
+    } finally {
+      await layerfs.close();
+    }
   }
 } catch (error) {
   process.stdout.write(JSON.stringify({

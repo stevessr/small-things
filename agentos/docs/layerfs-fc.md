@@ -38,8 +38,9 @@ export LAYERFS_DAEMON="/absolute/path/to/layerfs-daemon"
 export LAYERFS_PROJECT="agentos-competition"
 export LAYERFS_AGENT_MODULE="/absolute/path/to/layerfs/api/agent/sdk/src/index.js"
 
-# 首次单独用真实 SDK LayerFS.init("agentos-competition", "/your/repository") 初始化
+# 首次初始化项目树为 L0（包括 .git 与被忽略文件）；已有项目不要重复 Init
 cd small-things/agentos
+python3 -m agentos.layerfs_init --source "$(cd .. && pwd)"
 python3 -m agentos.cli examples/layerfs-demo.json --filesystem layerfs \
   --report /tmp/agentos-layerfs.json --trace /tmp/agentos-layerfs.jsonl
 ```

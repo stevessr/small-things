@@ -4,6 +4,11 @@
  */
 const notFound = () => Object.assign(new Error("NoSuchPath"), { code: "NoSuchPath" });
 export class LayerFS {
+  static async init(name, source) {
+    const instance = await LayerFS.open(name);
+    instance.created = { kind: "Initialized", project: name, layer: "L0", source };
+    return instance;
+  }
   static async open(name) {
     if (name !== "agentos-test") throw new Error("unexpected fake project");
     return new LayerFS();

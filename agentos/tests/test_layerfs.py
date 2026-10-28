@@ -27,6 +27,13 @@ class LayerFSBridgeTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         self.env_patch.stop()
 
+    async def test_init_project_l0(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as root:
+            result = await LayerFSClient().initialize(root, timeout_ms=5000)
+        self.assertEqual(result["kind"], "Initialized")
+        self.assertEqual(result["project"], "agentos-test")
+
     async def test_fc_selective_restore_is_new_branch_and_atomic(self):
         result = await LayerFSClient().fc_restore(
             "working", "checkpoint", ["/a.txt", "/gone.txt"])

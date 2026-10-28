@@ -62,6 +62,15 @@ class LayerFSClient:
             raise LayerFSFailure("LayerFS bridge exited nonzero despite success output")
         return response["value"]
 
+    async def initialize(self, source: str, timeout_ms: int = 300000) -> dict:
+        """Create LayerFS L0 from the full project tree, including ignored files."""
+        root = Path(source).resolve(strict=True)
+        if not root.is_dir():
+            raise LayerFSFailure("LayerFS Init source must be a directory")
+        return await self.call({"action": "init", "source": str(root),
+                                "timeout_ms": timeout_ms},
+                               timeout_s=timeout_ms / 1000 + 30)
+
     async def fc_restore(self, branch: str, checkpoint: str,
                          paths: list[str]) -> dict:
         return await self.call({"action": "fc", "branch": branch,
