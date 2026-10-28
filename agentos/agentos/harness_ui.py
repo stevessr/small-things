@@ -13,7 +13,9 @@ import re
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, parse_qs
+
+from .change_watch import ChangeWatch
 
 MAX_REPORT = 8 * 1024 * 1024
 MAX_TRACE = 2 * 1024 * 1024
@@ -135,7 +137,8 @@ def build_state(report: dict, events: list[dict]) -> dict:
     }
 
 
-def create_handler(report_path: Path | None, trace_path: Path | None):
+def create_handler(report_path: Path | None, trace_path: Path | None,
+                   changes: ChangeWatch):
     class Handler(BaseHTTPRequestHandler):
         server_version = "AgentOS-HarnessUI/0.1"
 
@@ -164,10 +167,39 @@ def create_handler(report_path: Path | None, trace_path: Path | None):
                 self._send(403, b"Invalid Host", "text/plain; charset=utf-8")
                 return
             path = urlsplit(self.path).path
-            if path == "/api/state":
+            if path == "/api/changes":
+                self._changes()
+            elif path == "/api/state":
                 try:
                     data = build_state(read_report(report_path), read_trace(trace_path))
+                    query = parse_qs(urlsplit(self.path).query)
+                    if query.get("view") == ["summary"]:
+                        data["events"] = []
+                        data["tasks"] = {
+                            key: {field: value for field, value in task.items()
+                                  if field in ("id", "status", "elapsed_s", "attempts",
+                                               "exit_code", "filesystem_branch",
+                                               "filesystem_commit")}
+                            for key, task in data["tasks"].items()
+                        }
                     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode()
+                    self._send(200, payload, "application/json; charset=utf-8")
+                except (ValueError, OSError, UnicodeError) as exc:
+                    self._send(500, json.dumps({"error": str(exc)}).encode(),
+                               "application/json; charset=utf-8")
+            elif path.startswith("/api/task/"):
+                task_id = path.removeprefix("/api/task/")
+                if not TASK_ID.fullmatch(task_id):
+                    self._send(404, b"Unknown task", "text/plain; charset=utf-8")
+                    return
+                try:
+                    data = build_state(read_report(report_path), read_trace(trace_path))
+                    if task_id not in data["tasks"]:
+                        self._send(404, b"Unknown task", "text/plain; charset=utf-8")
+                        return
+                    payload = json.dumps({"task": data["tasks"][task_id],
+                                          "spec": data["dag"].get(task_id, {})},
+                                         ensure_ascii=False, separators=(",", ":")).encode()
                     self._send(200, payload, "application/json; charset=utf-8")
                 except (ValueError, OSError, UnicodeError) as exc:
                     self._send(500, json.dumps({"error": str(exc)}).encode(),
@@ -185,6 +217,34 @@ def create_handler(report_path: Path | None, trace_path: Path | None):
             else:
                 self._send(404, b"Not found", "text/plain; charset=utf-8")
 
+        def _changes(self) -> None:
+            if not changes.active:
+                self._send(503, b"Native Linux file event monitoring unavailable",
+                           "text/plain; charset=utf-8")
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "close")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.end_headers()
+            version = changes.version
+            try:
+                self.wfile.write(f"data: {version}\\n\\n".encode())
+                self.wfile.flush()
+                while changes.active:
+                    next_version = changes.wait(version)
+                    if not changes.active:
+                        break
+                    if next_version > version:
+                        version = next_version
+                        self.wfile.write(f"data: {version}\\n\\n".encode())
+                    else:
+                        self.wfile.write(b": heartbeat\n\n")
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+
         def do_POST(self) -> None:
             if not self._valid_host():
                 self._send(403, b"Invalid Host", "text/plain; charset=utf-8")
@@ -200,7 +260,21 @@ def create_handler(report_path: Path | None, trace_path: Path | None):
 
 def start_server(report: Path | None, trace: Path | None, port: int = 8765):
     """Return a server that the caller can run/shut down for tests."""
-    return ThreadingHTTPServer(("127.0.0.1", port), create_handler(report, trace))
+    watched = [path for path in (report, trace) if path is not None]
+    changes = ChangeWatch(watched)
+
+    class HarnessServer(ThreadingHTTPServer):
+        daemon_threads = True
+
+        def server_close(self) -> None:
+            changes.close()
+            super().server_close()
+
+    try:
+        return HarnessServer(("127.0.0.1", port), create_handler(report, trace, changes))
+    except BaseException:
+        changes.close()
+        raise
 
 
 def main() -> None:
