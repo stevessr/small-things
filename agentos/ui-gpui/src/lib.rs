@@ -51,6 +51,13 @@ pub struct Snapshot {
     pub isolation: String,
 }
 
+/// Bounded pagination used by the native view, including enormous DAGs.
+pub fn page_range(total: usize, page: usize, page_size: usize) -> std::ops::Range<usize> {
+    let size = page_size.clamp(1, 40);
+    let start = page.saturating_mul(size).min(total);
+    start..start.saturating_add(size).min(total)
+}
+
 pub fn parse_snapshot(body: &[u8]) -> Result<Snapshot, String> {
     if body.len() > MAX_REPLY as usize {
         return Err("snapshot exceeds 8 MiB".into());
@@ -171,6 +178,62 @@ mod tests {
         let state = parse_snapshot(br#"{"tasks":{"single":{"status":"pending"}}}"#).unwrap();
         assert_eq!(state.tasks["single"].attempts, 0);
         assert!(state.dag.is_empty());
+    }
+
+    #[test]
+    fn page_size_never_exceeds_40_items_and_clamps_large_offsets() {
+        assert_eq!(page_range(90, 0, 999), 0..40);
+        assert_eq!(page_range(90, 1, 999), 40..80);
+        assert_eq!(page_range(90, 2, 999), 80..90);
+        assert_eq!(page_range(90, usize::MAX, 999), 90..90);
+        assert_eq!(page_range(0, 4, 0), 0..0);
+    }
+
+    #[test]
+    fn task_details_are_loaded_with_separate_read_only_request() {
+        use std::net::TcpListener;
+        use std::thread;
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let handle = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let mut buffer = [0u8; 1024];
+            let size = socket.read(&mut buffer).unwrap();
+            let request = String::from_utf8_lossy(&buffer[..size]);
+            assert!(request.starts_with("GET /api/task/agent_01 HTTP/1.0"));
+            let body = br#"{"task":{"id":"agent_01","stdout":"lazy log"},"spec":{"kind":"tool"}}"#;
+            let response = format!("HTTP/1.0 200 OK\r\nContent-Length: {}\r\n\r\n", body.len());
+            socket.write_all(response.as_bytes()).unwrap();
+            socket.write_all(body).unwrap();
+        });
+        let detail = fetch_task(port, "agent_01").unwrap();
+        assert_eq!(detail.task.stdout, "lazy log");
+        assert_eq!(detail.spec.kind, "tool");
+        handle.join().unwrap();
+        assert!(fetch_task(port, "../etc/passwd").is_err());
+    }
+
+    #[test]
+    fn sse_ignores_heartbeats_and_emits_only_push_events() {
+        use std::net::TcpListener;
+        use std::thread;
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let handle = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let mut buffer = [0u8; 1024];
+            let size = socket.read(&mut buffer).unwrap();
+            let request = String::from_utf8_lossy(&buffer[..size]);
+            assert!(request.starts_with("GET /api/changes HTTP/1.0"));
+            socket.write_all(
+                b"HTTP/1.0 200 OK\r\nContent-Type: text/event-stream\r\n\r\ndata: 1\n\n: heartbeat\n\ndata: 2\n\n"
+            ).unwrap();
+        });
+        let mut pushed = 0;
+        let disconnected = watch_local_changes(port, || pushed += 1).unwrap_err();
+        assert!(disconnected.contains("disconnected"));
+        assert_eq!(pushed, 2);
+        handle.join().unwrap();
     }
 
     #[test]

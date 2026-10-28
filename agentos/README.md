@@ -46,7 +46,7 @@ FC 检查点、stdout/stderr、事件时间线和 inotify → SSE 事件驱动�
 `python3 -m agentos.harness_ui --report examples/harness-ui-sample.json`。
 
 新增 [原生 GPUI 查看器](ui-gpui/README.md)：直接消费同一 API，
-提供任务列表、状态与 FC 查看，适合 Linux Wayland 桌面。
+提供任务列表、状态与 FC 查看，适合 Linux Wayland 桌面；采用 **inotify → SSE 事件驱动更新**、每页最多 **40 个任务**、按需加载单任务详细日志；窗口在屏幕可见范围内创建且禁止无界手动拉伸。
 GPUI 原生前端需要额外 Vulkan/图形依赖，不属于 Python 核心的运行条件。
 
 ## 快速开始

@@ -45,3 +45,7 @@ networks (it binds to localhost only).
 The GPUI source is intentionally small: it has no command execution or file
 writes, and no background filesystem scanning. A failed connection displays an
 error and does not fabricate task state.
+
+The Wayland/X11 window is non-resizable and opened with display-clamped bounds to
+guarantee its initial dimensions and user-triggered size changes cannot exceed
+the current display resolution. List and detail panes scroll independently.

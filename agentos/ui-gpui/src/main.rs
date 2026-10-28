@@ -1,6 +1,6 @@
 #[cfg(feature = "desktop")]
 mod native {
-    use agentos_harness_gpui::{Snapshot, TaskDetail, fetch_local, fetch_task, watch_local_changes};
+    use agentos_harness_gpui::{Snapshot, TaskDetail, fetch_local, fetch_task, watch_local_changes, page_range};
     use std::time::Duration;
     const PAGE_SIZE: usize = 40;
     use gpui::{
@@ -144,8 +144,8 @@ mod native {
         fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let mut items = div().flex().flex_col().gap_2();
             // Lazy, bounded native rendering; no unbounded widget tree.
-            let offset = self.page.saturating_mul(PAGE_SIZE);
-            for (id, task) in self.snapshot.tasks.iter().skip(offset).take(PAGE_SIZE) {
+            let visible = page_range(self.snapshot.tasks.len(), self.page, PAGE_SIZE);
+            for (id, task) in self.snapshot.tasks.iter().skip(visible.start).take(visible.len()) {
                 let task_id = id.clone();
                 let status = task.status.clone();
                 let deps = self.snapshot.dag.get(id).map(|d| d.deps.join(", ")).unwrap_or_default();
@@ -246,6 +246,9 @@ mod native {
             cx.open_window(
                 WindowOptions {
                     window_bounds: Some(WindowBounds::Windowed(bounds)),
+                    // GPUI clamps initial bounds to the actual display; disabling
+                    // user resize guarantees this window stays inside that limit.
+                    is_resizable: false,
                     ..Default::default()
                 },
                 |_, cx| cx.new(|cx| Dashboard::new(port, cx)),
