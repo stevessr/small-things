@@ -548,6 +548,21 @@
           "updated_utc": {
             "type": "string",
             "format": "date-time"
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Observed AgentOS Supervisor execution ID; null when legacy data lacks identity"
+          },
+          "last_seq": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": -1,
+            "description": "Last observed Supervisor record sequence; null when not evidenced"
           }
         },
         "required": [
@@ -561,7 +576,9 @@
           "isolation",
           "budget",
           "context",
-          "updated_utc"
+          "updated_utc",
+          "session_id",
+          "last_seq"
         ],
         "additionalProperties": true
       },
@@ -647,6 +664,21 @@
           "updated_utc": {
             "type": "string",
             "format": "date-time"
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Observed AgentOS Supervisor execution ID; null when legacy data lacks identity"
+          },
+          "last_seq": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": -1,
+            "description": "Last observed Supervisor record sequence; null when not evidenced"
           }
         },
         "required": [
@@ -660,7 +692,9 @@
           "isolation",
           "budget",
           "context",
-          "updated_utc"
+          "updated_utc",
+          "session_id",
+          "last_seq"
         ],
         "additionalProperties": true,
         "description": "When offset+limit are supplied, tasks/dag/declared_by include only the requested sorted page (max 40); total and counts still cover all tasks. Events=[] and outputs omitted. Without pagination, all task summaries are returned."

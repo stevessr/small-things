@@ -48,6 +48,20 @@ class HarnessModelTests(unittest.TestCase):
         self.assertEqual(final["isolation"], "layerfs")
         self.assertEqual(final["tasks"]["child"]["stderr"], "boom")
 
+    def test_snapshot_exposes_only_observed_run_identity(self):
+        legacy = build_state({}, [{"event": "started", "task": "a"}])
+        self.assertIsNone(legacy["session_id"])
+        self.assertIsNone(legacy["last_seq"])
+        observed = build_state({}, [{
+            "event": "admitted", "task": "worker", "seq": 2,
+            "session_id": "a" * 32, "agent_path": [],
+        }])
+        self.assertEqual(observed["session_id"], "a" * 32)
+        self.assertEqual(observed["last_seq"], 2)
+        final = build_state({"session_id": "b" * 32, "last_seq": 8}, [])
+        self.assertEqual(final["session_id"], "b" * 32)
+        self.assertEqual(final["last_seq"], 8)
+
     def test_trace_skips_malformed_line_and_invalid_tasks(self):
         with tempfile.TemporaryDirectory() as dir:
             trace = Path(dir) / "trace.jsonl"

@@ -30,6 +30,7 @@ curl -fsS 'http://127.0.0.1:8765/api/state' | python3 -m json.tool
 ```
 
 - `schema`：当前为 1，代表 **Harness UI 传输格式**，不等于 LayerFS SDK 版本。
+- `session_id`、`last_seq`：来自真实 Trace/终局 Report；旧式无序号的文件显示为 `null`，不能将 `null` 当作新会话已结束。
 - `tasks`：任务 ID → `AgentResult` 或 live Trace 派生的部分字段；任务运行过程中可能没有 `stdout` 和 `filesystem_commit`。
 - `dag`：任务 ID → `{deps,kind,tenant,priority,cpu_units,memory_mib}`。来源：终局 Report（优先）或事件 `admitted/declared`。
 - `declared_by`：动态子任务 ID → 声明者 ID。
