@@ -20,12 +20,14 @@ class AgentBus:
     def __init__(self, socket_path: Path, context: ContextStore,
                  lookup: Callable[[str], AgentSpec | None],
                  spawn: Callable[[str, dict], Awaitable[str]],
-                 declare: Callable[[str, list[dict]], Awaitable[list[str]]]):
+                 declare: Callable[[str, list[dict]], Awaitable[list[str]]],
+                 audit: Callable[..., None] | None = None):
         self.path = socket_path
         self.context = context
         self.lookup = lookup
         self.spawn = spawn
         self.declare = declare
+        self.audit = audit
         self.tokens: dict[str, tuple[str, str]] = {}
         self.queues: dict[str, deque] = defaultdict(deque)
         self.server: asyncio.AbstractServer | None = None
@@ -51,6 +53,11 @@ class AgentBus:
         self.path.unlink(missing_ok=True)
 
     async def _handle(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        # A handled control is not evidence that its response reached the
+        # client, nor that the receiving Agent consumed a queued payload.
+        request_id = None
+        agent_id = None
+        error_code = "ok"
         try:
             line = await asyncio.wait_for(reader.readline(), timeout=5)
             if not line or len(line) > MAX_MESSAGE:
@@ -63,6 +70,13 @@ class AgentBus:
                 raise PermissionError("invalid agent capability")
             agent_id, tenant = owner
             op = request.get("op")
+            request_id = secrets.token_hex(12)
+            observed_op = op if op in {
+                "send", "recv", "context_put", "context_get", "spawn", "declare_tasks"
+            } else "unknown"
+            if self.audit:
+                self.audit("requested", task=agent_id, request_id=request_id,
+                           op=observed_op)
             if op == "send":
                 target = request.get("to")
                 dest = self.lookup(target) if isinstance(target, str) else None
@@ -95,10 +109,15 @@ class AgentBus:
                 raise ValueError("unsupported operation")
             result = {"ok": True, "result": data}
         except (ValueError, PermissionError, TypeError, KeyError, json.JSONDecodeError) as exc:
+            error_code = "permission_denied" if isinstance(exc, PermissionError) else "invalid_request"
             result = {"ok": False, "error": str(exc)}
         except Exception:
             # Do not expose internal paths, stack frames or credentials to clients.
+            error_code = "internal_error"
             result = {"ok": False, "error": "internal broker error"}
+        if request_id and agent_id and self.audit:
+            self.audit("handled", task=agent_id, request_id=request_id,
+                       accepted=result["ok"], code=error_code)
         try:
             writer.write((json.dumps(result, ensure_ascii=False) + "\n").encode())
             await asyncio.wait_for(writer.drain(), timeout=5)
