@@ -16,6 +16,7 @@ from pathlib import Path
 
 from .artifacts import atomic_json, create_run_dir, file_sha256, init_trace, utc_now
 from .core import AgentRuntime
+from .capabilities import require
 from .harness_ui import start_server
 from .layerfs import LayerFSRuntime
 from .models import Status
@@ -31,6 +32,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="AgentOS runner with local read-only UI")
     parser.add_argument("plan", type=Path)
     parser.add_argument("--filesystem", choices=["host", "layerfs"], default="host")
+    parser.add_argument("--require-capability", action="append", default=[],
+                        metavar="FEATURE", help="fail fast if backend does not declare feature supported")
     parser.add_argument("--report", type=Path, help="final JSON (default: .agentos/last-report.json)")
     parser.add_argument("--trace", type=Path, help="JSONL (default: .agentos/last-trace.jsonl)")
     parser.add_argument("--runs-root", type=Path,
@@ -46,6 +49,8 @@ def main() -> int:
         parser.error("--runs-root cannot be combined with --report or --trace")
     try:
         tasks, budget, _ = read_plan(args.plan)
+        for feature in args.require_capability:
+            require(args.filesystem, feature)
         digest = hashlib.sha256(args.plan.read_bytes()).hexdigest()
     except (ValueError, OSError) as exc:
         parser.exit(2, f"Invalid AgentOS plan: {exc}\n")
