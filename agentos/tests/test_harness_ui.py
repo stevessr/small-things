@@ -14,7 +14,9 @@ from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from agentos.harness_ui import (MAX_REPORT, build_state, read_report, read_trace, start_server)
+from agentos.harness_ui import (MAX_REPORT, SnapshotCache, build_state, paginate_summary,
+                                read_report, read_trace, start_server)
+from agentos.change_watch import ChangeWatch
 
 
 class HarnessModelTests(unittest.TestCase):
@@ -81,6 +83,30 @@ class HarnessModelTests(unittest.TestCase):
         self.assertIn("<title>AgentOS", assets.joinpath("index.html").read_text())
         self.assertIn("function renderGraph", assets.joinpath("app.js").read_text())
         self.assertIn(".sidebar", assets.joinpath("styles.css").read_text())
+
+    def test_snapshot_cache_reuses_parse_and_invalidates_after_file_change(self):
+        from concurrent.futures import ThreadPoolExecutor
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "report.json"
+            path.write_text(json.dumps({"tasks": {
+                "worker": {"id": "worker", "status": "running", "stdout": "private"}
+            }}))
+            cache = SnapshotCache(path, None, ChangeWatch([]))
+            first = cache.get()
+            self.assertIs(cache.get(), first)
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                results = list(pool.map(lambda _: cache.get(), range(12)))
+            self.assertTrue(all(result is first for result in results))
+            projection = paginate_summary(first, {"offset": ["0"], "limit": ["1"]})
+            self.assertNotIn("stdout", projection["tasks"]["worker"])
+            self.assertEqual(first["tasks"]["worker"]["stdout"], "private")
+            path.write_text(json.dumps({"tasks": {
+                "worker": {"id": "worker", "status": "succeeded", "stdout": "private"}
+            }}))
+            changed = cache.get()
+            self.assertIsNot(first, changed)
+            self.assertEqual(changed["tasks"]["worker"]["status"], "succeeded")
 
     def test_no_files_is_empty_state(self):
         self.assertEqual(read_report(None), {})
