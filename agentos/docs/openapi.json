@@ -69,7 +69,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "oneOf": [
+                  "anyOf": [
                     {
                       "$ref": "#/components/schemas/Snapshot"
                     },
@@ -558,7 +558,7 @@
           "updated_utc"
         ],
         "additionalProperties": true,
-        "description": "Subset of full snapshot: events=[], tasks contain only id/status/elapsed_s/attempts/exit_code/filesystem_branch/filesystem_commit."
+        "description": "Transfer-optimized projection of Snapshot: events=[], Task outputs and resource_metrics removed. It overlaps structurally with Snapshot; use anyOf, not oneOf."
       },
       "Error": {
         "type": "object",
