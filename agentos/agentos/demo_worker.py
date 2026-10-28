@@ -11,7 +11,6 @@ def main() -> None:
     role = sys.argv[1]
     if role == "declare":
         import json
-        import sys
         from .client import declare_tasks
         def make(task_id, deps=()):
             return {"id": task_id, "deps": list(deps),
