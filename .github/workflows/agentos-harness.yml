@@ -27,7 +27,12 @@ jobs:
           node-version: '22'
       - name: Validate client JavaScript syntax
         run: node --check agentos/ui/app.js && node --check agentos/layerfs_bridge.mjs
-      - name: Unit and integration tests
+      - name: Plan and environment preflight (non-executing)
+        run: |
+          python -m agentos.plan_lint examples/demo.json --format json
+          python -m agentos.plan_lint examples/agent-declarations.json
+          python -m agentos.doctor --backend host --ui web --format json
+      - name: Unit, documentation and integration tests
         run: python -m unittest discover -s tests -v
       - name: End-to-end multi-Agent scenario
         run: python -m agentos.cli examples/demo.json --report /tmp/agentos-report.json --trace /tmp/agentos-trace.jsonl
@@ -48,7 +53,12 @@ jobs:
         run: dnf install -y nodejs npm
       - name: Validate UI client and LayerFS bridge JavaScript
         run: cd agentos && node --check agentos/ui/app.js && node --check agentos/layerfs_bridge.mjs
-      - name: openEuler kernel-independent supervisor tests
+      - name: openEuler static plan and documentation entry points
+        run: |
+          cd agentos
+          python3 -m agentos.plan_lint examples/demo.json --format json
+          python3 -m agentos.doctor --backend host --ui web --format json
+      - name: openEuler kernel-independent supervisor and docs tests
         run: cd agentos && python3 -m unittest discover -s tests -v
       - name: openEuler end-to-end multi-Agent scenario
         run: cd agentos && python3 -m agentos.cli examples/demo.json
