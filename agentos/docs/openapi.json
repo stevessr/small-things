@@ -263,6 +263,68 @@
           }
         }
       }
+    },
+    "/api/records": {
+      "get": {
+        "summary": "Strict cursor replay of observed supervisor facts, not native conversation/process resume",
+        "description": "Uses only JSONL evidence. Initial after=-1, then session_id is required. Cursor gaps, legacy logs and session rotation return 409 rather than fabricated events. Reads bounded 2 MiB tail, max 4000 decoded records.",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": -1,
+              "maximum": 1000000000000,
+              "default": -1
+            },
+            "description": "Last accepted seq; -1 for initial fetch"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "description": "Required when after >=0; prevents cross-run replay"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified contiguous facts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordWindow"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed or unsupported cursor fields"
+          },
+          "403": {
+            "description": "Invalid localhost Host header"
+          },
+          "409": {
+            "description": "Evidence gap, legacy trace, different session, or cursor beyond observed history"
+          },
+          "500": {
+            "description": "Trace could not be read"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -378,6 +440,22 @@
           },
           "task": {
             "type": "string"
+          },
+          "seq": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Per AgentOS execution supervisor record stream; not a native model event counter"
+          },
+          "session_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "agent_path": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Declaring ancestors, [] for initial tasks; distinct from DAG deps"
           }
         },
         "required": [
@@ -596,6 +674,42 @@
           "error"
         ],
         "additionalProperties": true
+      },
+      "RecordWindow": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema",
+          "session_id",
+          "records",
+          "next_seq",
+          "has_more"
+        ],
+        "properties": {
+          "schema": {
+            "type": "integer",
+            "const": 1
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            }
+          },
+          "next_seq": {
+            "type": "integer",
+            "minimum": -1
+          },
+          "has_more": {
+            "type": "boolean"
+          }
+        }
       }
     }
   }

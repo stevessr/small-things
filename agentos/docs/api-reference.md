@@ -15,8 +15,13 @@
 | GET | `/api/state?view=summary` | application/json | 摘要：`events=[]` 且仅选择有限任务字段 |
 | GET | `/api/task/<id>` | application/json | 单个任务的完整结果和 DAG 元信息 |
 | GET | `/api/changes` | text/event-stream | inotify 推送版本号；不是任务数据本身 |
+| GET | `/api/records?after=-1&limit=100` | application/json | 有序事件重放；后续请求需带 `session_id`；无足够证据时 409 |
 
 写操作统一拒绝：`POST` 为 405；未知路径返回 404；错误 Host 返回 403；Linux inotify 不可用时 `/api/changes` 返回 503。超过 **8 MiB** 的 Report 会导致状态接口返回 500；错误信息以 `{"error":"..."}` 返回。客户端不得从 500 响应推断 Worker 一定失败。
+
+## 事实记录与严谨的游标
+
+`GET /api/records` 返回 `schema/session_id/records/next_seq/has_more`，每个新事件包含连续的 `seq`、`session_id`、`agent_path`。仅证明此窗口内有序且连续，不表示可跨越被截断的历史前缀。超过内存读取上限或 Trace 被替换、旧格式无序号时返回 **409**，非法参数 **400**。没有写接口，也不提供原生会话继续执行；详见 [事件语义](trace-format.md)。
 
 ## 状态快照 `GET /api/state`
 

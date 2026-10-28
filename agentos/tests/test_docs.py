@@ -101,7 +101,8 @@ class DocumentationContractTests(unittest.TestCase):
         self.assertEqual(api["openapi"], "3.1.0")
         paths = set(api["paths"])
         self.assertEqual(paths, set(ROUTES) | {
-            "/healthz", "/api/state", "/api/task/{id}", "/api/changes"
+            "/healthz", "/api/state", "/api/task/{id}", "/api/changes",
+            "/api/records"
         })
         self.assertTrue(all("post" not in value and "put" not in value
                             and "delete" not in value for value in api["paths"].values()))
@@ -116,6 +117,14 @@ class DocumentationContractTests(unittest.TestCase):
         self.assertEqual(state["schema"], schemas["Snapshot"]["properties"]["schema"]["const"])
         for field in state["counts"]:
             self.assertIn(field, schemas["Snapshot"]["properties"]["counts"]["properties"])
+
+    def test_record_cursor_contract_matches_server_bounds(self):
+        from agentos.record_stream import MAX_WINDOW, MAX_CURSOR
+        api = json.loads((ROOT / "docs" / "openapi.json").read_text())
+        params = {p["name"]: p for p in api["paths"]["/api/records"]["get"]["parameters"]}
+        self.assertEqual(params["limit"]["schema"]["maximum"], MAX_WINDOW)
+        self.assertEqual(params["after"]["schema"]["maximum"], MAX_CURSOR)
+        self.assertIn("409", api["paths"]["/api/records"]["get"]["responses"])
 
     def test_openapi_page_contract_matches_server_bounds(self):
         from agentos.harness_ui import MAX_PAGE_OFFSET, MAX_PAGE_SIZE
@@ -165,6 +174,7 @@ class DocumentationContractTests(unittest.TestCase):
         for module in ("agentos.plan_lint", "agentos.doctor", "agentos.cli",
                        "agentos.harness_run", "agentos.harness_ui",
                        "agentos.layerfs_fc", "agentos.layerfs_init",
+                       "agentos.capabilities",
                        "agentos.sessions"):
             with self.subTest(module=module):
                 completed = subprocess.run(

@@ -1,6 +1,6 @@
 # Trace、终局报告与事件语义
 
-生命周期事件由 `AgentRuntime._event` 以 **JSON Lines (JSONL)** 追加写入。每行是独立 JSON 对象，包含 `time_ns`（Unix 纳秒整数）、`event`（事件名）与按事件决定的附加键；同一条事件在 `runtime.events` 中也有内存副本。
+生命周期事件由 `AgentRuntime._event` 以 **JSON Lines (JSONL)** 追加写入。新运行的每条事件增加 `seq`（从 0 开始连续递增）、`session_id`（每次 AgentOS 执行唯一的随机 ID）与 `agent_path`（动态声明者祖先链；初始 Task 为 `[]`）。这些是 **AgentOS Supervisor 自己观察到的事实**，不是第三方模型运行时的原生帧。旧 Trace 没有这些字段，仍可用于旧版 UI，但不能使用严格的游标重放。每行是独立 JSON 对象，包含 `time_ns`（Unix 纳秒整数）、`event`（事件名）与按事件决定的附加键；同一条事件在 `runtime.events` 中也有内存副本。
 
 ## 事件字典
 
@@ -39,6 +39,18 @@ stateDiagram-v2
 ```
 
 状态并不等同事件名：`declared` 是任务纳管关系，`started` 是状态过渡；`finished` 携带最终 `status`；`retry` 仍属于同一 Task 的 RUNNING 生命周期。动态子任务自动依赖父任务，父任务 FAILED 则它会被 BLOCKED。另有独立 DAG 分支可以继续。
+
+## 严格游标重放
+
+`GET /api/records` 是一个只读的已观察事件窗口。首次请求不带游标或使用 `after=-1`；后续必须同时传入服务返回的 `session_id` 和 `next_seq`。它最多返回 200 条事件，`has_more` 表示当前可见 Trace 中还有后续条目。若 Trace 仅保留尾部、包含缺失序号、旧格式事件或发生会话替换，将返回 409 并要求重新检查记录，**不会猜测或补造漏失数据**。内核 inotify/SSE 仍只负责通知变化，重放与消息通知是不同层级。相关设计参见 [OAR 对照与取舍](oar-comparison.md)。
+
+```bash
+curl -fsS 'http://127.0.0.1:8765/api/records?limit=100'
+# 接续：把响应里的 session_id 与 next_seq 原样带入
+# /api/records?after=99&limit=100&session_id=<server returned session_id>
+```
+
+**Replay ≠ Resume**：这里仅重放已写入磁盘的 AgentOS Supervisor 事实，不恢复被杀掉的子进程、模型上下文、工具调用或外部副作用。
 
 ## 报告与 Trace 的关系
 

@@ -11,6 +11,7 @@
 | 安装 LayerFS、查历史、FC 文件回退 | [LayerFS + FC](layerfs-fc.md) |
 | 重现 CI、测试、故障注入和指标口径 | [测试与评估](testing.md) |
 | 运行失败 / 空白监控 / GPU 问题 | [排障手册](troubleshooting.md) |
+| 参考 OAR 的机制与设计取舍 | [OAR 对照实现](oar-comparison.md) |
 | 威胁模型与生产化缺口 | [安全与实现边界](security.md) |
 
 ## 独立运行证据

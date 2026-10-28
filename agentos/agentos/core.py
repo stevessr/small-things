@@ -312,7 +312,8 @@ class AgentRuntime:
             self._temp.cleanup()
 
     def report(self) -> dict:
-        return {"budget": vars(self.budget), "isolation": self.cgroups.mode,
+        return {"session_id": self.session_id, "last_seq": self._next_seq - 1,
+                "budget": vars(self.budget), "isolation": self.cgroups.mode,
                 "tasks": {key: result.as_dict() for key, result in sorted(self.results.items())},
                 "dag": {key: {"deps": list(spec.deps), "kind": spec.kind,
                               "tenant": spec.tenant, "priority": spec.priority,

@@ -28,6 +28,17 @@ python3 -m agentos.cli examples/demo.json \
   --report /tmp/agentos-report.json --trace /tmp/agentos-trace.jsonl
 ```
 
+## 面向 OAR 的可验证基础能力
+
+```bash
+python3 -m agentos.capabilities --backend host --format json
+python3 -m agentos.capabilities --backend layerfs --format json
+# 运行中的只读 API：
+# curl 'http://127.0.0.1:8765/api/records?limit=100'
+```
+
+Supervisor 事件新增长度受限的连续 `seq`、`session_id` 和声明者 `agent_path`，允许严格游标验证；不完整、旋转或旧 Trace 返回 409，不伪造事件。具体参考 [OAR 设计取舍](docs/oar-comparison.md)。
+
 ## 已实现能力
 
 | 项目 | 当前能力 |

@@ -4,6 +4,8 @@
 
 | 能力 | 状态 | 证据与限制 |
 | --- | --- | --- |
+| 后端能力声明与不支持原因 | 已实现，CLI 测试 | `python3 -m agentos.capabilities --backend host --format json`；`conditional` 不当作已验证 |
+| 有序 Supervisor 事件与有限窗口重放 | 已实现，CI 验证 | 有 `seq/session_id/agent_path`；游标缺口 409，不提供原生会话恢复 |
 | Host 多 Agent DAG、优先级和资源预约 | 已实现，CI 验证 | `tests/test_runtime.py` |
 | 动态批量任务声明、租户/环校验 | 已实现，CI 验证 | `tests/test_runtime.py`、`tests/test_plan_lint.py` |
 | Linux Host RLIMIT/进程组回收 | 已实现，CI 验证 | 非安全沙箱；`RLIMIT` 只是故障隔离 |
@@ -25,7 +27,7 @@
 ## 接口兼容范围
 
 - **Plan**：严格顶层 `budget` + `tasks`，任务字段以 `AgentSpec` 为准；更新字段需同步 [JSON Schema](agentos-plan.schema.json) 和 [配置文档](configuration.md)。
-- **Trace**：`time_ns` + `event` + 事件自有字段；参见 [事件格式](trace-format.md)，现阶段没有独立事件版本号。
+- **Trace**：新增 `seq/session_id/agent_path` + `time_ns` + `event`；旧 Trace 无游标，严格重放拒绝旧格式。参见 [事件格式](trace-format.md)。
 - **Report**：完整 Host Runtime 结果；**没有统一的独立版本字段**。
 - **HTTP UI**：`schema=1`；[OpenAPI](openapi.json) 描述路径与主要数据结构，可能在 v0.4 原型中变化。
 - **FC**：以 LayerFS 的不可变 Commit 和新 Branch 作为安全操作边界，历史查询与回退命令没有实现跨 SDK 版本迁移。
