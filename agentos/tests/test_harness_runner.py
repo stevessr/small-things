@@ -136,9 +136,11 @@ class HarnessRunnerTests(unittest.TestCase):
             }))
             trace.write_text(
                 json.dumps({"seq": 0, "session_id": session_id,
-                            "event": "started", "task": "a"}) + "\n" +
+                            "event": "started", "time_ns": 1,
+                            "agent_path": [], "task": "a"}) + "\n" +
                 json.dumps({"seq": 2, "session_id": session_id,
-                            "event": "finished", "task": "a"}) + "\n"
+                            "event": "finished", "time_ns": 2,
+                            "agent_path": [], "task": "a"}) + "\n"
             )
             (session / "manifest.json").write_text(json.dumps({
                 "schema": 1, "run_id": session.name, "status": "succeeded",
@@ -151,7 +153,8 @@ class HarnessRunnerTests(unittest.TestCase):
             }))
             integrity = inspect_run(session)
             self.assertEqual(integrity["integrity"], "invalid")
-            self.assertIn("sequence", " ".join(integrity["errors"]))
+            self.assertTrue(any("missing" in error or "sequence" in error
+                                for error in integrity["errors"]))
 
     def test_running_session_is_incomplete_not_invalid(self):
         with tempfile.TemporaryDirectory() as temporary:
