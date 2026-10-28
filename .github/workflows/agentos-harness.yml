@@ -29,6 +29,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: End-to-end multi-Agent scenario
         run: python -m agentos.cli examples/demo.json --report /tmp/agentos-report.json --trace /tmp/agentos-trace.jsonl
+      - name: Agent-declared DAG end-to-end
+        run: python -m agentos.cli examples/agent-declarations.json --report /tmp/agentos-declared.json
       - name: Synthetic microbenchmark smoke test
         run: python -m bench.benchmark --tasks 6 --parallel 3 --sleep 0.05 --trials 2
 
@@ -46,3 +48,5 @@ jobs:
         run: cd agentos && python3 -m unittest discover -s tests -v
       - name: openEuler end-to-end multi-Agent scenario
         run: cd agentos && python3 -m agentos.cli examples/demo.json
+      - name: openEuler Agent-declared DAG end-to-end
+        run: cd agentos && python3 -m agentos.cli examples/agent-declarations.json

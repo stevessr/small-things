@@ -231,10 +231,19 @@ class AgentRuntime:
         try:
             await self.bus.start()
             while self.pending or running:
-                # Fail closed when a dependency fails; unaffected branches continue.
-                for key in list(self.pending):
-                    if any(self.results.get(dep) and self.results[dep].status in
-                           (Status.FAILED, Status.BLOCKED) for dep in self.tasks[key].deps):
+                # Transitive failure closure: one failed node may block an
+                # arbitrarily long DAG even when no other task is running.
+                # Recompute to a fixpoint BEFORE declaring the queue stalled.
+                while True:
+                    blocked = [
+                        key for key in sorted(self.pending)
+                        if any(self.results.get(dep) and self.results[dep].status in
+                               (Status.FAILED, Status.BLOCKED)
+                               for dep in self.tasks[key].deps)
+                    ]
+                    if not blocked:
+                        break
+                    for key in blocked:
                         self.pending.remove(key)
                         self.results[key] = AgentResult(id=key, status=Status.BLOCKED,
                                                         error="dependency failed")

@@ -119,6 +119,20 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["attacker"].status, Status.FAILED)
         self.assertEqual(result["victim"].status, Status.SUCCEEDED)
 
+    async def test_transitive_dependency_failure_closure(self):
+        # Do not depend on set iteration order to propagate BLOCKED through DAG.
+        tasks = [task("root", "import sys; sys.exit(2)")]
+        tasks += [task(f"step{i}", "pass", deps=[("root" if i == 0
+                                               else f"step{i - 1}")])
+                  for i in range(12)]
+        tasks.append(task("independent", "print('ok')"))
+        runtime = AgentRuntime(tasks)
+        result = await runtime.run()
+        self.assertEqual(result["root"].status, Status.FAILED)
+        self.assertTrue(all(result[f"step{i}"].status == Status.BLOCKED
+                            for i in range(12)))
+        self.assertEqual(result["independent"].status, Status.SUCCEEDED)
+
     async def test_invalid_graph_is_rejected(self):
         with self.assertRaises(ValueError):
             AgentRuntime([task("a", deps=["b"]), task("b", deps=["a"])])
