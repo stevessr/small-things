@@ -1,0 +1,20 @@
+[package]
+name = "agentos-harness-gpui"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Experimental native GPUI inspector for AgentOS Harness"
+
+[features]
+default = []
+desktop = ["dep:gpui", "dep:gpui_platform"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+gpui = { package = "gpui-pre", version = "=0.3.10", optional = true }
+gpui_platform = { package = "gpui-pre-platform", version = "=0.3.10", features = ["font-kit", "wayland", "x11"], optional = true }
+
+[[bin]]
+name = "agentos-harness-gpui"
+path = "src/main.rs"
