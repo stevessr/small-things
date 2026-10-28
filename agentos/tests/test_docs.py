@@ -82,6 +82,20 @@ class DocumentationContractTests(unittest.TestCase):
         self.assertEqual(schema["$defs"]["task"]["properties"]["retries"]["maximum"], 5)
         self.assertEqual(schema["$defs"]["budget"]["properties"]["max_tasks"]["maximum"], 10000)
 
+    def test_run_manifest_schema_is_aligned_with_emitted_fields(self):
+        import ast
+
+        schema = json.loads((ROOT / "docs" / "session-manifest.schema.json").read_text())
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(schema["properties"]["schema"]["const"], 1)
+        required = set(schema["required"])
+        runtime = (ROOT / "agentos" / "harness_run.py").read_text()
+        for field in required:
+            self.assertIn('"' + field + '"', runtime)
+        for field in ("report_sha256", "trace_sha256"):
+            self.assertIn(field, schema["properties"])
+            self.assertIn(field, runtime)
+
     def test_openapi_matches_runtime_routes_and_state(self):
         api = json.loads((ROOT / "docs" / "openapi.json").read_text())
         self.assertEqual(api["openapi"], "3.1.0")

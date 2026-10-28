@@ -2,6 +2,8 @@
 
 从 `harness` 的 v0.4 开始，可以使用 `--runs-root` 保存每次独立执行结果，而不再只保留 `.agentos/last-report.json`。
 
+Manifest 的机器可读约束见 [JSON Schema](session-manifest.schema.json)，设计决策见 [ADR-0004](adr/0004-retained-run-evidence.md)。
+
 ## 1. 独立会话运行
 
 在 `small-things/agentos/` 目录：

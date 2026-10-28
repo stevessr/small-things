@@ -15,7 +15,7 @@
 
 ## 独立运行证据
 
-[运行会话、SHA-256 完整性验证与历史浏览](run-sessions.md)：`--runs-root` 不覆盖已有结果，`agentos.sessions` 只读列出与检查。
+[运行会话、SHA-256 完整性验证与历史浏览](run-sessions.md)、[Manifest JSON Schema](session-manifest.schema.json)：`--runs-root` 不覆盖已有结果，`agentos.sessions` 只读列出与检查。
 
 ## 深入参考与可执行教程
 

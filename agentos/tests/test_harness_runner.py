@@ -77,6 +77,10 @@ class HarnessRunnerTests(unittest.TestCase):
                 self.assertEqual(len(metadata["plan_sha256"]), 64)
                 self.assertEqual(len(metadata["report_sha256"]), 64)
                 self.assertEqual(len(metadata["trace_sha256"]), 64)
+                schema = json.loads((Path(__file__).resolve().parent.parent /
+                                     "docs" / "session-manifest.schema.json").read_text())
+                self.assertEqual(set(metadata), set(schema["properties"]))
+                self.assertTrue(set(schema["required"]).issubset(metadata))
                 self.assertEqual(inspect_run(session)["integrity"], "ok")
                 report = json.loads((session / "report.json").read_text())
                 self.assertEqual(len(report["tasks"]), 4)
