@@ -298,7 +298,7 @@ def create_handler(report_path: Path | None, trace_path: Path | None,
                     self._send(404, b"Unknown task", "text/plain; charset=utf-8")
                     return
                 try:
-                    data = build_state(read_report(report_path), read_trace(trace_path))
+                    data = cache.get()
                     if task_id not in data["tasks"]:
                         self._send(404, b"Unknown task", "text/plain; charset=utf-8")
                         return
