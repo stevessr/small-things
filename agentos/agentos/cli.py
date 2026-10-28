@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from .core import AgentRuntime
+from .capabilities import require
 from .layerfs import LayerFSRuntime
 from .models import AgentSpec, Budget, Status
 from .plan_lint import read_plan
@@ -19,6 +20,8 @@ def main() -> int:
     parser.add_argument("--trace", help="append JSONL lifecycle events to path")
     parser.add_argument("--report", help="write final JSON report to path")
     parser.add_argument("--cgroup-root", help="writable, controller-delegated cgroup v2 directory")
+    parser.add_argument("--require-capability", action="append", default=[],
+                        metavar="FEATURE", help="reject unsupported/conditional backend features")
     parser.add_argument("--filesystem", choices=["host", "layerfs"], default="host",
                         help="host subprocesses or LayerFS Docker workspaces")
     parser.add_argument("--require-cgroup", action="store_true", help="fail rather than using rlimit fallback")
@@ -26,6 +29,8 @@ def main() -> int:
 
     try:
         specs, budget, _ = read_plan(args.plan)
+        for feature in args.require_capability:
+            require(args.filesystem, feature)
         if args.filesystem == "layerfs":
             if args.cgroup_root or args.require_cgroup:
                 raise ValueError("--cgroup-root and --require-cgroup do not apply to LayerFS sandbox execution")
