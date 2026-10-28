@@ -165,6 +165,15 @@ print(declare_tasks([
         self.assertGreater(started["combine"], finished["fetch_b"])
         self.assertEqual(engine.report()["declared_by"]["combine"], "planner")
 
+    async def test_large_dag_validator_avoids_recursion_limit(self):
+        specs = [task("step0")]
+        specs += [task(f"step{i}", deps=[f"step{i-1}"])
+                  for i in range(1, 1200)]
+        runtime = AgentRuntime(specs, Budget(max_tasks=1300))
+        self.assertEqual(len(runtime.tasks), 1200)
+        runtime.context.close()
+        runtime._temp.cleanup()
+
     async def test_atomic_batch_rejects_cycle_without_partial_admission(self):
         engine = AgentRuntime([task("root")])
         engine._started = True

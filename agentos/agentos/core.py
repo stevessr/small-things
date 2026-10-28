@@ -74,25 +74,29 @@ class AgentRuntime:
         self._event("admitted", task=task.id, tenant=task.tenant, kind=task.kind)
 
     def _validate_graph(self, tasks: dict[str, AgentSpec] | None = None) -> None:
+        """Validate DAG in O(V+E), without recursive call-stack exhaustion."""
         tasks = self.tasks if tasks is None else tasks
-        visited: dict[str, int] = {}
-
-        def visit(key: str) -> None:
-            if visited.get(key) == 1:
-                raise ValueError("dependency cycle detected")
-            if visited.get(key) == 2:
-                return
-            visited[key] = 1
-            for dep in tasks[key].deps:
+        indegree = {key: 0 for key in tasks}
+        dependents: dict[str, list[str]] = {key: [] for key in tasks}
+        for key, spec in tasks.items():
+            for dep in spec.deps:
                 if dep not in tasks:
                     raise ValueError(f"unknown dependency: {dep}")
-                if tasks[dep].tenant != tasks[key].tenant:
+                if tasks[dep].tenant != spec.tenant:
                     raise ValueError("cross-tenant dependency denied")
-                visit(dep)
-            visited[key] = 2
-
-        for key in tasks:
-            visit(key)
+                indegree[key] += 1
+                dependents[dep].append(key)
+        ready = [key for key, degree in indegree.items() if degree == 0]
+        visited = 0
+        while ready:
+            key = ready.pop()
+            visited += 1
+            for child in dependents[key]:
+                indegree[child] -= 1
+                if indegree[child] == 0:
+                    ready.append(child)
+        if visited != len(tasks):
+            raise ValueError("dependency cycle detected")
 
     async def _spawn(self, parent: str, raw: dict) -> str:
         # Backward-compatible single-task declaration.
