@@ -120,6 +120,22 @@ class HarnessRunnerTests(unittest.TestCase):
             self.assertEqual(report.read_text(), "previous report untouched")
             self.assertEqual(trace.read_text(), "previous trace untouched")
 
+    def test_running_session_is_incomplete_not_invalid(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            run = root / "20261028T000000Z-abcd1234"
+            run.mkdir()
+            (run / "manifest.json").write_text(json.dumps({
+                "schema": 1, "run_id": run.name, "status": "running",
+                "exit_code": None, "started_utc": "2026-10-28T00:00:00+00:00",
+                "finished_utc": None, "filesystem": "host",
+                "plan_sha256": "0" * 64, "task_count_initial": 1,
+                "report": "report.json", "trace": "trace.jsonl"
+            }))
+            result = inspect_run(run)
+            self.assertEqual(result["integrity"], "incomplete")
+            self.assertEqual(result["errors"], [])
+
     def test_run_history_cli_and_integrity_detect_tampering(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
