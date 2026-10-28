@@ -102,6 +102,42 @@ diff，再由上层决定是否合并/发布。选中的目标文件在检查点
 - 测试 `tests/fake_layerfs.mjs` 是**公开 SDK 接口测试替身**，
   不代表真实 LayerFS Docker/FUSE 与持久性验证。
 
+## Agent 任务自主声明协议
+
+LayerFS 执行器在 Agent 的 Docker Workspace 中设置：
+
+- `AGENTOS_AGENT_ID`：当前任务 ID
+- `AGENTOS_DECLARATIONS`：该任务专属的绝对文件路径
+  `/workspaces/<ws>/.agentos/declarations/<task-id>.json`
+
+Agent 成功执行时提交文件系统后，桥接器从其 Branch 读取任务唯一的
+`/.agentos/declarations/<task-id>.json`，最多 **60 KiB**。格式：
+
+```json
+{
+  "version": 1,
+  "tasks": [
+    {"id": "research", "argv": ["python3", "research.py"], "memory_mib": 128},
+    {"id": "review", "deps": ["research"], "argv": ["python3", "review.py"],
+     "priority": 5, "cpu_units": 1, "memory_mib": 128}
+  ]
+}
+```
+
+- 每批 1–32 个任务；先验证全部任务，再原子纳入待调度队列。
+- `deps` 可引用本批或已有同租户任务，允许前向引用**本批**任务；
+  不允许跨批悬空引用、循环依赖、跨租户依赖或重复 ID。
+- 每个任务自动依赖声明它的 Agent，因此不会抢跑父任务的文件状态。
+- 声明无效：声明者任务标记失败，不重试已成功执行的工具调用，
+  也不发布该批任何子任务；不相关 DAG 分支继续执行。
+- 在后继任务继承的 LayerFS Branch 中存在父级声明文件也不会重复触发：
+  运行时只读取当前唯一任务 ID 的声明文件。
+- 动态纳管只是**任务描述**，实际执行仍受预算、依赖和容错策略管理。
+
+`examples/layerfs-declarations.json` 给出纯 shell 写 manifest 的例子。
+本阶段没有将宿主 Unix Socket 直接投影到 Docker，也没有赋予
+外部工具调用幂等或撤销保证。
+
 ## 下一步
 
 实机 openEuler 连接 SDK + daemon + Docker，进行文件写入/故障回退/并行冲突

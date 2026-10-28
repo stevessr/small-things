@@ -125,6 +125,78 @@ class RuntimeTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             AgentRuntime([task("a", cpu_units=3)], Budget(cpu_units=2))
 
+    async def test_agent_declares_batch_with_sibling_dependencies(self):
+        plan = """from agentos.client import declare_tasks
+import sys
+def child(id, deps=[]):
+    return {"id": id, "deps": deps,
+            "argv": [sys.executable, "-c", "print('declared child')"],
+            "memory_mib": 128}
+print(declare_tasks([
+    child("fetch_a"), child("fetch_b"),
+    child("combine", ["fetch_a", "fetch_b"])
+]))
+"""
+        engine = AgentRuntime([task("planner", plan)])
+        result = await engine.run()
+        self.assertEqual(set(result), {"planner", "fetch_a", "fetch_b", "combine"})
+        self.assertTrue(all(x.status == Status.SUCCEEDED for x in result.values()))
+        self.assertEqual(set(engine.tasks["combine"].deps),
+                         {"planner", "fetch_a", "fetch_b"})
+        started = {ev["task"]: ev["time_ns"] for ev in engine.events
+                   if ev["event"] == "started"}
+        finished = {ev["task"]: ev["time_ns"] for ev in engine.events
+                    if ev["event"] == "finished"}
+        self.assertGreater(started["combine"], finished["fetch_a"])
+        self.assertGreater(started["combine"], finished["fetch_b"])
+        self.assertEqual(engine.report()["declared_by"]["combine"], "planner")
+
+    async def test_atomic_batch_rejects_cycle_without_partial_admission(self):
+        engine = AgentRuntime([task("root")])
+        engine._started = True
+        before = set(engine.tasks)
+        with self.assertRaisesRegex(ValueError, "cycle"):
+            await engine._declare_tasks("root", [
+                {"id": "a", "deps": ["b"], "argv": ["true"]},
+                {"id": "b", "deps": ["a"], "argv": ["true"]},
+            ])
+        self.assertEqual(set(engine.tasks), before)
+        self.assertEqual(set(engine.pending), before)
+        engine.context.close()
+        engine._temp.cleanup()
+
+    async def test_atomic_batch_rejects_unknown_cross_tenant_duplicate_and_quota(self):
+        engine = AgentRuntime([task("root", tenant="tenantA"),
+                               task("other", tenant="tenantB")],
+                              Budget(cpu_units=2, memory_mib=512, max_tasks=3))
+        engine._started = True
+        specs = [
+            [{"id": "a", "deps": ["unknown"], "argv": ["true"]}],
+            [{"id": "a", "deps": ["other"], "argv": ["true"]}],
+            [{"id": "a", "tenant": "tenantB", "argv": ["true"]}],
+            [{"id": "a", "argv": ["true"]}, {"id": "b", "argv": ["true"]}],
+            [{"id": "a", "argv": ["true"]}, {"id": "a", "argv": ["true"]}],
+        ]
+        for batch in specs:
+            with self.assertRaises((ValueError, PermissionError)):
+                await engine._declare_tasks("root", batch)
+            self.assertEqual(set(engine.tasks), {"root", "other"})
+            self.assertEqual(set(engine.pending), {"root", "other"})
+        engine.context.close()
+        engine._temp.cleanup()
+
+    async def test_declaration_invalid_is_not_retried_and_blocks_downstream(self):
+        plan = """from agentos.client import request
+request("declare_tasks", tasks=[
+    {"id": "declared", "deps": ["no-such-dependency"], "argv": ["true"]}
+])"""
+        engine = AgentRuntime([task("planner", plan, retries=2),
+                               task("unrelated", "print('ok')")])
+        result = await engine.run()
+        self.assertEqual(result["planner"].status, Status.FAILED)
+        self.assertEqual(result["unrelated"].status, Status.SUCCEEDED)
+        self.assertNotIn("declared", result)
+
 
 if __name__ == "__main__":
     unittest.main()

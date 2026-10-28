@@ -94,6 +94,46 @@ class LayerFSBridgeTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(LayerFSFailure):
                 await LayerFSClient().fc_restore("working", "checkpoint", ["/a.txt"])
 
+    async def test_layerfs_agent_declares_sibling_dag(self):
+        import json
+        payload = {"version": 1, "tasks": [
+            {"id": "left", "argv": ["true"], "memory_mib": 128},
+            {"id": "right", "argv": ["true"], "memory_mib": 128},
+            {"id": "join", "argv": ["true"], "deps": ["left", "right"],
+             "memory_mib": 128}
+        ]}
+        with patch.dict(os.environ, {
+            "LAYERFS_FAKE_DECLARE_AGENT": "root",
+            "LAYERFS_FAKE_DECLARATION": json.dumps(payload)
+        }):
+            engine = LayerFSRuntime([
+                AgentSpec.parse({"id": "root", "argv": ["true"], "memory_mib": 128})
+            ], Budget(cpu_units=2, memory_mib=512, max_tasks=8))
+            result = await engine.run()
+        self.assertEqual(set(result), {"root", "left", "right", "join"})
+        self.assertTrue(all(v.status == Status.SUCCEEDED for v in result.values()))
+        self.assertEqual(set(engine.tasks["join"].deps), {"root", "left", "right"})
+        self.assertEqual(engine.report()["declared_by"]["join"], "root")
+
+    async def test_layerfs_invalid_manifest_fails_and_leaves_no_children(self):
+        import json
+        invalids = ['broken{', json.dumps({"version": 1, "tasks": [
+            {"id": "left", "deps": ["missing"], "argv": ["true"]}
+        ]})]
+        for invalid in invalids:
+            with self.subTest(invalid=invalid), patch.dict(os.environ, {
+                "LAYERFS_FAKE_DECLARE_AGENT": "root",
+                "LAYERFS_FAKE_DECLARATION": invalid
+            }):
+                engine = LayerFSRuntime([
+                    AgentSpec.parse({"id": "root", "argv": ["true"], "retries": 3})
+                ])
+                result = await engine.run()
+                self.assertEqual(set(result), {"root"})
+                self.assertEqual(result["root"].status, Status.FAILED)
+                self.assertEqual(result["root"].attempts, 1)
+                self.assertIn("declaration", result["root"].error)
+
 
 if __name__ == "__main__":
     unittest.main()

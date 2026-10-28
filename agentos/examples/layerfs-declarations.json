@@ -1,0 +1,14 @@
+{
+  "budget": {"cpu_units": 2, "memory_mib": 512, "max_tasks": 16},
+  "tasks": [
+    {
+      "id": "planner",
+      "kind": "tool",
+      "argv": [
+        "sh", "-c",
+        "printf '%s\\n' '{\"version\":1,\"tasks\":[{\"id\":\"research_a\",\"argv\":[\"sh\",\"-c\",\"printf A > a.txt\"],\"memory_mib\":128},{\"id\":\"research_b\",\"argv\":[\"sh\",\"-c\",\"printf B > b.txt\"],\"memory_mib\":128},{\"id\":\"assemble\",\"deps\":[\"research_a\",\"research_b\"],\"argv\":[\"sh\",\"-c\",\"cat a.txt b.txt > result.txt\"],\"memory_mib\":128}]}' > \"$AGENTOS_DECLARATIONS\""
+      ],
+      "memory_mib": 128
+    }
+  ]
+}

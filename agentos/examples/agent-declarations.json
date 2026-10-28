@@ -1,0 +1,11 @@
+{
+  "budget": {"cpu_units": 2, "memory_mib": 512, "max_tasks": 16},
+  "tasks": [
+    {
+      "id": "planner",
+      "kind": "model",
+      "argv": ["python3", "-m", "agentos.demo_worker", "declare"],
+      "memory_mib": 128
+    }
+  ]
+}

@@ -48,6 +48,32 @@ AgentSpec (id, tenant, argv, deps, kind, cpu, memory, timeout, retry, priority)
 当前的 `model` 仅为进程适配入口：接入 vLLM、llama.cpp 或远程模型须提供实际适配器，
 本版本**不虚构已经调用真实模型**。
 
+## Agent 自主声明任务与依赖
+
+新版支持 Agent 动态声明一组任务，并声明任务间的 DAG 依赖。由执行时
+统一负责校验、资源准入、调度与失败传播。不是让 Agent 私自调用 shell
+绕过调度器。每批最多 32 项；每个子任务**自动依赖声明者**，可额外依赖
+同批兄弟任务或已有同租户任务，未知任务、环、重复 ID 和超预算整批拒绝。
+
+宿主后端使用 Unix Socket：
+
+```python
+from agentos.client import declare_tasks
+declare_tasks([
+    {"id": "collect", "argv": ["python3", "collect.py"]},
+    {"id": "analyze", "argv": ["python3", "analyze.py"], "deps": ["collect"]},
+])
+```
+
+运行 `python3 -m agentos.cli examples/agent-declarations.json`。
+
+LayerFS 后端通过 `AGENTOS_DECLARATIONS` 环境变量提供任务唯一的
+Workspace 文件路径。Agent 写入 `{"version":1,"tasks":[...]}`，
+在成功提交 Workspace 后由 Runtime 读取并原子纳管。也可以使用
+`agentos.declarations.write_manifest(tasks)`（需要容器能导入该 Python 模块）。
+运行 `python3 -m agentos.cli examples/layerfs-declarations.json --filesystem layerfs`
+需要先部署真实 LayerFS，CI 对应测试使用模拟 SDK。
+
 ## 使用 cgroup v2
 
 未提供 `--cgroup-root` 时使用 `RLIMIT_AS`、`RLIMIT_CPU`、墙钟超时和进程组终止。

@@ -9,7 +9,21 @@ from .client import request
 
 def main() -> None:
     role = sys.argv[1]
-    if role == "plan":
+    if role == "declare":
+        import json
+        import sys
+        from .client import declare_tasks
+        def make(task_id, deps=()):
+            return {"id": task_id, "deps": list(deps),
+                    "argv": [sys.executable, "-c",
+                             "print('AgentOS executed: " + task_id + "')"],
+                    "memory_mib": 128}
+        ids = declare_tasks([
+            make("research_a"), make("research_b"),
+            make("synthesis", ["research_a", "research_b"])
+        ])
+        print(json.dumps({"declared": ids}))
+    elif role == "plan":
         request("context_put", key="task-context",
                 value="Analyze system call traces and produce an incident report. " * 120)
         child = {"id": "audit", "kind": "tool", "argv": [sys.executable, "-m",
