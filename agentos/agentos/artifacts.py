@@ -25,11 +25,16 @@ def atomic_text(path: Path, content: str) -> None:
         os.replace(name, path)
         # Best-effort directory fsync for rename durability.
         if os.name == "posix":
-            directory = os.open(path.parent, os.O_RDONLY)
             try:
-                os.fsync(directory)
-            finally:
-                os.close(directory)
+                directory = os.open(path.parent, os.O_RDONLY)
+                try:
+                    os.fsync(directory)
+                finally:
+                    os.close(directory)
+            except OSError:
+                # Not every volume/overlay supports fsync on a directory.
+                # The atomic rename already completed successfully.
+                pass
     finally:
         Path(name).unlink(missing_ok=True)
 
