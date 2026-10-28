@@ -1,0 +1,8 @@
+{
+  "budget": {"cpu_units": 2, "memory_mib": 512, "max_tasks": 16},
+  "tasks": [
+    {"id": "write", "kind": "tool", "argv": ["sh", "-c", "printf 'hello from LayerFS\\n' > artifact.txt"], "memory_mib": 128},
+    {"id": "read", "kind": "tool", "deps": ["write"], "argv": ["cat", "artifact.txt"], "memory_mib": 128},
+    {"id": "review", "kind": "tool", "deps": ["read"], "argv": ["sh", "-c", "test -f artifact.txt && wc -c artifact.txt"], "memory_mib": 128}
+  ]
+}

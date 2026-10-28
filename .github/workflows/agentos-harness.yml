@@ -22,6 +22,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Unit and integration tests
         run: python -m unittest discover -s tests -v
       - name: End-to-end multi-Agent scenario
@@ -37,6 +40,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Python on openEuler
         run: dnf install -y python3
+      - name: Install Node.js for mocked bridge testing
+        run: dnf install -y nodejs npm
       - name: openEuler kernel-independent supervisor tests
         run: cd agentos && python3 -m unittest discover -s tests -v
       - name: openEuler end-to-end multi-Agent scenario

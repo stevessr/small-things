@@ -4,6 +4,10 @@
 > 本实现是使用 Linux OS 原语的 Agent supervisor，而不是定制内核或成熟的 AI Native OS。
 > 代码位于 `small-things` 的独立 `harness` 分支，不修改既有工具。
 
+## LayerFS 新后端与 FC 精细回退
+
+新增 [LayerFS 1.1.0 + FC 使用指南](docs/layerfs-fc.md)：通过真实 LayerFS SDK 运行独立 Docker Workspace、提交分支，并可选择文件从固定 Commit 恢复到**新 Branch**。先执行 `python3 -m agentos.cli examples/layerfs-demo.json --filesystem layerfs`（需按指南配置真实 LayerFS）。本后端不等于完整宿主 cgroup 配额或跨 Docker Agent IPC。
+
 ## 快速开始
 
 需要 Linux 与 Python **3.11+**；核心部分仅依赖 Python 标准库。
