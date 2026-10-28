@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 from .artifacts import file_sha256
+from .record_index import TraceIndex
 
 
 def inspect_run(directory: Path) -> dict:
@@ -59,22 +60,22 @@ def inspect_run(directory: Path) -> dict:
                 raise ValueError("report does not contain tasks object")
             if data.get("session_id") and report.get("session_id") != data["session_id"]:
                 raise ValueError("report and manifest session IDs differ")
-            previous = -1
-            with (directory / "trace.jsonl").open("r", encoding="utf-8") as stream:
-                for line in stream:
-                    if not line.strip():
-                        continue
-                    event = json.loads(line)
-                    if not isinstance(event, dict):
-                        raise ValueError("trace contains a nonobject JSON record")
-                    if data.get("session_id"):
-                        if event.get("session_id") != data["session_id"]:
-                            raise ValueError("trace has a different session ID")
-                        if event.get("seq") != previous + 1:
-                            raise ValueError("trace sequence is incomplete or unordered")
-                        previous += 1
-            if data.get("session_id") and previous != data.get("last_seq"):
-                raise ValueError("trace final sequence does not match manifest")
+            if data.get("session_id"):
+                # Same strict parser as the HTTP replay endpoint: validate the
+                # complete file, including seq/identity/JSON semantics.
+                index = TraceIndex(directory / "trace.jsonl")
+                verified = index.read(limit=1)
+                if verified["session_id"] != data["session_id"]:
+                    raise ValueError("trace has a different session ID")
+                if index._last_seq != data.get("last_seq"):
+                    raise ValueError("trace final sequence does not match manifest")
+            else:
+                # Legacy unsigned/unsequenced manifests keep basic JSONL
+                # structural validation without inventing a session identity.
+                with (directory / "trace.jsonl").open("r", encoding="utf-8") as stream:
+                    for line in stream:
+                        if line.strip() and not isinstance(json.loads(line), dict):
+                            raise ValueError("trace contains a nonobject JSON record")
         except (OSError, UnicodeError, ValueError) as exc:
             result["integrity"] = "invalid"
             result["errors"].append(f"invalid JSON artifact: {exc}")
