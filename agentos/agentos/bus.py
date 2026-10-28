@@ -19,11 +19,13 @@ INBOX_LIMIT = 128
 class AgentBus:
     def __init__(self, socket_path: Path, context: ContextStore,
                  lookup: Callable[[str], AgentSpec | None],
-                 spawn: Callable[[str, dict], Awaitable[str]]):
+                 spawn: Callable[[str, dict], Awaitable[str]],
+                 declare: Callable[[str, list[dict]], Awaitable[list[str]]]):
         self.path = socket_path
         self.context = context
         self.lookup = lookup
         self.spawn = spawn
+        self.declare = declare
         self.tokens: dict[str, tuple[str, str]] = {}
         self.queues: dict[str, deque] = defaultdict(deque)
         self.server: asyncio.AbstractServer | None = None
@@ -86,6 +88,9 @@ class AgentBus:
                 data = {"value": self.context.get(tenant, request.get("key"))}
             elif op == "spawn":
                 data = {"id": await self.spawn(agent_id, request.get("task"))}
+            elif op == "declare_tasks":
+                ids = await self.declare(agent_id, request.get("tasks"))
+                data = {"ids": ids, "count": len(ids)}
             else:
                 raise ValueError("unsupported operation")
             result = {"ok": True, "result": data}

@@ -21,3 +21,13 @@ def request(op: str, **fields):
     if not response.get("ok"):
         raise RuntimeError(response.get("error", "broker failure"))
     return response["result"]
+
+
+
+def declare_tasks(tasks: list[dict]) -> list[str]:
+    """Agent-facing batch declaration for the host IPC backend.
+
+    Every child implicitly depends on the declaring Agent. All-or-nothing
+    admission is performed by the supervisor, not by this convenience wrapper.
+    """
+    return request("declare_tasks", tasks=tasks)["ids"]

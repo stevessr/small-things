@@ -39,8 +39,9 @@ class AgentRuntime:
         self.cgroups = CgroupV2(cgroup_root, required=require_cgroup)
         self._temp = tempfile.TemporaryDirectory(prefix="agentos-")
         self.bus = AgentBus(Path(self._temp.name) / "bus.sock",
-                            self.context, self.tasks.get, self._spawn)
+                            self.context, self.tasks.get, self._spawn, self._declare_tasks)
         self._started = False
+        self.declared_by: dict[str, str] = {}
         for task in tasks:
             self.add(task, initial=True)
         self._validate_graph()
@@ -72,7 +73,8 @@ class AgentRuntime:
         self.pending.add(task.id)
         self._event("admitted", task=task.id, tenant=task.tenant, kind=task.kind)
 
-    def _validate_graph(self) -> None:
+    def _validate_graph(self, tasks: dict[str, AgentSpec] | None = None) -> None:
+        tasks = self.tasks if tasks is None else tasks
         visited: dict[str, int] = {}
 
         def visit(key: str) -> None:
@@ -81,30 +83,73 @@ class AgentRuntime:
             if visited.get(key) == 2:
                 return
             visited[key] = 1
-            for dep in self.tasks[key].deps:
-                if dep not in self.tasks:
+            for dep in tasks[key].deps:
+                if dep not in tasks:
                     raise ValueError(f"unknown dependency: {dep}")
-                if self.tasks[dep].tenant != self.tasks[key].tenant:
+                if tasks[dep].tenant != tasks[key].tenant:
                     raise ValueError("cross-tenant dependency denied")
                 visit(dep)
             visited[key] = 2
 
-        for key in self.tasks:
+        for key in tasks:
             visit(key)
 
     async def _spawn(self, parent: str, raw: dict) -> str:
-        if not isinstance(raw, dict):
-            raise ValueError("spawn task must be an object")
+        # Backward-compatible single-task declaration.
+        result = await self._declare_tasks(parent, [raw])
+        return result[0]
+
+    async def _declare_tasks(self, parent: str, raw_tasks: list[dict]) -> list[str]:
+        """Atomically admit one batch with explicit intra-batch DAG edges.
+
+        Every declared task depends on its declaring parent (which is currently
+        RUNNING or completing); other dependencies may reference existing tasks
+        or siblings within this same batch. No unresolved forward references
+        beyond this batch are accepted.
+        """
+        if not self._started or parent not in self.tasks:
+            raise ValueError("declaration requires an existing running Agent")
+        if not isinstance(raw_tasks, list) or not 1 <= len(raw_tasks) <= 32:
+            raise ValueError("declare_tasks accepts 1–32 task objects")
+        if len(self.tasks) + len(raw_tasks) > self.budget.max_tasks:
+            raise ValueError("declared tasks exceed max_tasks")
         owner = self.tasks[parent]
-        if "tenant" in raw and raw["tenant"] != owner.tenant:
-            raise PermissionError("cannot spawn into another tenant")
-        # Children depend on the parent for a deterministic DAG and no orphan races.
-        deps = list(raw.get("deps", []))
-        if parent not in deps:
-            deps.append(parent)
-        child = AgentSpec.parse({**raw, "tenant": owner.tenant, "deps": deps})
-        self.add(child)
-        return child.id
+        batch: dict[str, AgentSpec] = {}
+        for raw in raw_tasks:
+            if not isinstance(raw, dict):
+                raise ValueError("declared task must be an object")
+            if "tenant" in raw and raw["tenant"] != owner.tenant:
+                raise PermissionError("cannot declare tasks in another tenant")
+            deps = raw.get("deps", [])
+            if not isinstance(deps, (tuple, list)):
+                raise ValueError("deps must be an array")
+            if len(deps) > 128:
+                raise ValueError("too many declared dependencies")
+            # Parent is always an enforced barrier, even if omitted by Agent.
+            merged = list(deps)
+            if parent not in merged:
+                merged.append(parent)
+            spec = AgentSpec.parse({**raw, "tenant": owner.tenant, "deps": merged})
+            if spec.id in batch or spec.id in self.tasks:
+                raise ValueError(f"duplicate task ID: {spec.id}")
+            if spec.cpu_units > self.budget.cpu_units or spec.memory_mib > self.budget.memory_mib:
+                raise ValueError(f"task {spec.id} exceeds cluster resource budget")
+            batch[spec.id] = spec
+        candidate = {**self.tasks, **batch}
+        self._validate_graph(candidate)
+        # All validation precedes mutation, so a rejected batch admits nothing.
+        for task in batch.values():
+            self.tasks[task.id] = task
+            self.pending.add(task.id)
+            self.declared_by[task.id] = parent
+            self._event("declared", task=task.id, parent=parent,
+                        tenant=task.tenant, deps=list(task.deps))
+            self._event("admitted", task=task.id, tenant=task.tenant, kind=task.kind)
+        return list(batch)
+
+    async def _after_success(self, spec: AgentSpec, result: AgentResult) -> None:
+        """Backend hook after a successful attempt and before scheduler completion."""
+        return None
 
     async def _attempt(self, spec: AgentSpec, token: str) -> tuple[int | None, str, str, str, dict]:
         group = None
@@ -152,6 +197,14 @@ class AgentRuntime:
                 result.stdout, result.stderr = out, err
                 result.error = reason or (f"exit code {code}" if code != 0 else "")
                 if code == 0 and not reason:
+                    try:
+                        await self._after_success(spec, result)
+                    except (ValueError, PermissionError) as exc:
+                        # Malformed declarations cannot publish successful
+                        # downstream tasks; do not re-run side-effectful calls.
+                        result.error = "task declaration rejected: " + str(exc)
+                        self._event("declaration_rejected", task=spec.id, error=str(exc))
+                        break
                     result.status = Status.SUCCEEDED
                     break
                 if metrics.get("layerfs_unknown"):
@@ -221,4 +274,5 @@ class AgentRuntime:
     def report(self) -> dict:
         return {"budget": vars(self.budget), "isolation": self.cgroups.mode,
                 "tasks": {key: result.as_dict() for key, result in sorted(self.results.items())},
-                "context": self.context.stats(), "events": self.events}
+                "context": self.context.stats(), "declared_by": self.declared_by,
+                "events": self.events}
