@@ -106,9 +106,10 @@ class AgentRuntime:
         self.add(child)
         return child.id
 
-    async def _attempt(self, spec: AgentSpec, token: str) -> tuple[int | None, str, str, str]:
+    async def _attempt(self, spec: AgentSpec, token: str) -> tuple[int | None, str, str, str, dict]:
         group = None
         proc = None
+        metrics: dict = {}
         try:
             group = self.cgroups.create(spec)
             env = os.environ.copy()
@@ -123,17 +124,18 @@ class AgentRuntime:
             stdout, stderr, _ = await asyncio.wait_for(
                 asyncio.gather(_read_bounded(proc.stdout), _read_bounded(proc.stderr), proc.wait()),
                 timeout=spec.timeout_s)
-            return proc.returncode, stdout, stderr, ""
+            return proc.returncode, stdout, stderr, "", metrics
         except asyncio.TimeoutError:
-            return None, "", "", f"wall timeout ({spec.timeout_s}s)"
+            return None, "", "", f"wall timeout ({spec.timeout_s}s)", metrics
         except (OSError, ValueError, RuntimeError) as exc:
-            return None, "", "", f"{type(exc).__name__}: {exc}"
+            return None, "", "", f"{type(exc).__name__}: {exc}", metrics
         finally:
             if proc is not None:
                 # Also kill abandoned children after a nominal parent exit.
                 terminate_group(proc.pid)
                 if proc.returncode is None:
                     await proc.wait()
+            metrics.update(self.cgroups.snapshot(group))
             self.cgroups.release(group)
 
     async def _execute(self, spec: AgentSpec) -> AgentResult:
@@ -144,7 +146,8 @@ class AgentRuntime:
         try:
             for number in range(spec.retries + 1):
                 result.attempts += 1
-                code, out, err, reason = await self._attempt(spec, token)
+                code, out, err, reason, metrics = await self._attempt(spec, token)
+                result.resource_metrics = metrics
                 result.exit_code = code
                 result.stdout, result.stderr = out, err
                 result.error = reason or (f"exit code {code}" if code != 0 else "")
@@ -161,7 +164,7 @@ class AgentRuntime:
             result.elapsed_s = round(time.monotonic() - started, 6)
             self._event("finished", task=spec.id, status=result.status.value,
                         attempts=result.attempts, elapsed_s=result.elapsed_s,
-                        error=result.error)
+                        error=result.error, resource_metrics=result.resource_metrics)
         return result
 
     async def run(self) -> dict[str, AgentResult]:

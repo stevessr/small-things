@@ -38,6 +38,20 @@ class ContextTests(unittest.TestCase):
             db.close()
 
 
+class LinuxTelemetryTests(unittest.TestCase):
+    def test_cgroup_stat_snapshot_parser(self):
+        from agentos.linux import CgroupV2
+        with tempfile.TemporaryDirectory() as tmp:
+            cg = Path(tmp)
+            (cg / "memory.peak").write_text("2048\\n")
+            (cg / "cpu.stat").write_text("usage_usec 135\\nuser_usec 100\\n")
+            (cg / "memory.events").write_text("oom 1\\noom_kill 0\\n")
+            stats = CgroupV2.snapshot(cg)
+            self.assertEqual(stats["memory_peak"], 2048)
+            self.assertEqual(stats["cpu_stat"]["usage_usec"], 135)
+            self.assertEqual(stats["memory_events"]["oom"], 1)
+
+
 class RuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_dependency_execution_and_bus(self):
         producer = task("producer",

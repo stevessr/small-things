@@ -78,6 +78,7 @@ class AgentResult:
     error: str = ""
     elapsed_s: float = 0.0
     isolation: str = "unknown"
+    resource_metrics: dict = field(default_factory=dict)
 
     def as_dict(self) -> dict:
         return {**vars(self), "status": self.status.value}

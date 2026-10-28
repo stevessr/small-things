@@ -69,6 +69,32 @@ class CgroupV2:
         if group is not None:
             (group / "cgroup.procs").write_text(str(pid))
 
+    @staticmethod
+    def snapshot(group: Path | None) -> dict:
+        """Kernel-provided cgroup v2 accounting, only when delegated controls exist."""
+        if group is None:
+            return {}
+        metrics: dict = {}
+        for name in ("memory.peak", "memory.current", "pids.peak"):
+            try:
+                value = (group / name).read_text().strip()
+                if value.isdigit():
+                    metrics[name.replace(".", "_")] = int(value)
+            except OSError:
+                pass
+        for name in ("cpu.stat", "memory.events"):
+            try:
+                parsed = {}
+                for line in (group / name).read_text().splitlines():
+                    fields = line.split()
+                    if len(fields) == 2 and fields[1].isdigit():
+                        parsed[fields[0]] = int(fields[1])
+                if parsed:
+                    metrics[name.replace(".", "_")] = parsed
+            except OSError:
+                pass
+        return metrics
+
     def release(self, group: Path | None) -> None:
         if group is None:
             return
