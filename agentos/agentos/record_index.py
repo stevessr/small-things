@@ -21,6 +21,35 @@ MAX_RECORD_BYTES = 1024 * 1024
 _SESSION = re.compile(r"^[0-9a-f]{32}$")
 
 
+def _no_duplicate_keys(pairs):
+    value = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError("duplicate JSON object key")
+        value[key] = item
+    return value
+
+
+def _reject_non_json_constant(value):
+    raise ValueError("non-JSON numeric constant")
+
+
+def _decode_record(line: bytes) -> dict:
+    try:
+        event = json.loads(line, object_pairs_hook=_no_duplicate_keys,
+                           parse_constant=_reject_non_json_constant)
+    except (ValueError, UnicodeError) as exc:
+        raise CursorConflict("malformed complete JSONL record") from exc
+    if not isinstance(event, dict):
+        raise CursorConflict("trace record must be a JSON object")
+    if (not isinstance(event.get("event"), str) or
+            type(event.get("time_ns")) is not int or
+            type(event.get("agent_path")) is not list or
+            not all(isinstance(item, str) for item in event["agent_path"])):
+        raise CursorConflict("trace record missing required supervisor fact fields")
+    return event
+
+
 class TraceIndex:
     def __init__(self, path: Path | None):
         self.path = Path(path) if path is not None else None
@@ -82,12 +111,9 @@ class TraceIndex:
                 break
             if len(line) > MAX_RECORD_BYTES:
                 raise CursorConflict("oversized record in trace")
-            try:
-                event = json.loads(line)
-            except (ValueError, UnicodeError) as exc:
-                raise CursorConflict("malformed complete JSONL record") from exc
-            seq = event.get("seq") if isinstance(event, dict) else None
-            sid = event.get("session_id") if isinstance(event, dict) else None
+            event = _decode_record(line)
+            seq = event.get("seq")
+            sid = event.get("session_id")
             if (type(seq) is not int or not 0 <= seq <= MAX_CURSOR or
                     not isinstance(sid, str) or not _SESSION.fullmatch(sid)):
                 raise CursorConflict("legacy, invalid or unsequenced trace record")
@@ -142,11 +168,8 @@ class TraceIndex:
                         line = file.readline(MAX_RECORD_BYTES + 1)
                         # Re-check even after indexing: changing the file while
                         # serving a page must never silently return wrong facts.
-                        try:
-                            item = json.loads(line)
-                        except (ValueError, UnicodeError) as exc:
-                            raise CursorConflict("trace changed during indexed replay") from exc
-                        if (not isinstance(item, dict) or item.get("seq") != expected or
+                        item = _decode_record(line)
+                        if (item.get("seq") != expected or
                                 item.get("session_id") != self._session):
                             raise CursorConflict("trace changed during indexed replay")
                         if expected >= start_seq:
