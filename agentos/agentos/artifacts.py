@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import tempfile
 from datetime import datetime, timezone
@@ -54,3 +55,11 @@ def create_run_dir(root: Path) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     prefix = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ-")
     return Path(tempfile.mkdtemp(prefix=prefix, dir=root))
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for chunk in iter(lambda: stream.read(128 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
