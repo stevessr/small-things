@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>AgentOS • Harness Console</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">A<span>·</span></span><span><strong>AgentOS</strong><small>HARNESS CONSOLE</small></span></div>
+      <div class="navigation">
+        <div class="nav-caption">WORKSPACE</div>
+        <a href="#overview" class="nav-link active"><span class="nav-symbol">◈</span> 运行概览</a>
+        <a href="#dag" class="nav-link"><span class="nav-symbol">⌘</span> DAG 调度图</a>
+        <a href="#task-list" class="nav-link"><span class="nav-symbol">▤</span> Agent 任务</a>
+        <a href="#events" class="nav-link"><span class="nav-symbol">◷</span> 执行事件</a>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="sidebar-information"><span class="tiny-dot"></span><span>LOCAL · READ ONLY</span></div>
+        <span class="sidebar-description">运行数据直接来自 JSON 报告与 JSONL Trace。无远程指令执行权限。</span>
+      </div>
+    </aside>
+    <main id="overview" class="main">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>WORKSPACE</span><span class="separator">/</span><b>Runtime Overview</b></div>
+        <div class="top-actions"><span id="connection" class="connection"><span class="pulse"></span>连接中</span><span class="topbar-time" id="updated">—</span><button id="refresh" type="button" class="icon-btn" title="立即刷新" aria-label="立即刷新">↻</button></div>
+      </header>
+      <section class="content">
+        <div class="page-title">
+          <div><div class="eyebrow">AGENT RUNTIME / MONITORING</div><h1>运行时控制台<span class="version">v0.4</span></h1><p>实时检查执行图、文件系统检查点、资源占用与任务结果。</p></div>
+          <div class="run-summary"><span class="run-label">执行环境</span><b id="isolation">—</b><span id="budget" class="muted">等待首次数据</span></div>
+        </div>
+        <section class="stats" aria-label="运行指标">
+          <div class="stat"><span>任务总数 <span class="stat-icon">▦</span></span><div id="metric-total" class="stat-value">—</div><small>动态声明也计入</small></div>
+          <div class="stat"><span>执行成功 <span class="stat-icon success">✓</span></span><div id="metric-succeeded" class="stat-value">—</div><small>已完成任务</small></div>
+          <div class="stat"><span>正在运行 <span class="stat-icon running">◉</span></span><div id="metric-running" class="stat-value">—</div><small>当前并发执行</small></div>
+          <div class="stat"><span>失败 / 阻断 <span class="stat-icon error">!</span></span><div id="metric-failed" class="stat-value">—</div><small>异常与上游阻断</small></div>
+          <div class="stat"><span>待执行 <span class="stat-icon">◷</span></span><div id="metric-pending" class="stat-value">—</div><small>等待资源或依赖</small></div>
+        </section>
+        <div class="workspace-grid">
+          <section id="dag" class="panel graph-panel">
+            <div class="panel-header">
+              <div><h2>执行依赖图</h2><p>自动布局 · 点击节点检查运行状态和文件检查点</p></div>
+              <div class="legend"><span><i class="l-running"></i>运行中</span><span><i class="l-succeeded"></i>完成</span><span><i class="l-failed"></i>失败</span></div>
+            </div>
+            <div id="graph-surface" class="graph-surface">
+              <svg id="dag-svg" role="img" aria-label="Agent 任务依赖关系图"></svg>
+              <div id="graph-empty" class="empty">正在读取任务图…</div>
+            </div>
+            <div class="graph-footer"><span id="graph-caption">DAG / Agent dependency graph</span><span>滚动查看长链路</span></div>
+          </section>
+          <section class="panel details-panel">
+            <div class="panel-header"><div><h2>Agent Inspector</h2><p>选中 DAG 节点查看执行信息</p></div><span class="panel-tag">DETAILS</span></div>
+            <div id="details" class="details-body"><div class="empty">选择左侧任务节点以查看详情</div></div>
+          </section>
+        </div>
+        <div class="workspace-grid bottom-grid">
+          <section id="task-list" class="panel task-panel">
+            <div class="panel-header"><div><h2>任务管理</h2><p>任务、依赖以及创建它的 Agent</p></div><span class="panel-tag">RUNTIME</span></div>
+            <div class="toolbar"><input id="search" type="search" autocomplete="off" placeholder="搜索 Agent ID、租户、类型" aria-label="搜索任务"><select id="filter" aria-label="按任务状态筛选"><option value="all">全部状态</option><option value="running">运行中</option><option value="succeeded">成功</option><option value="failed">失败</option><option value="blocked">阻断</option><option value="pending">等待中</option></select></div>
+            <div class="table-scroll"><table><thead><tr><th>AGENT</th><th>STATUS</th><th>DEPENDENCIES</th><th>DURATION</th></tr></thead><tbody id="task-rows"></tbody></table></div>
+          </section>
+          <section id="events" class="panel events-panel">
+            <div class="panel-header"><div><h2>执行时间线</h2><p>纳管、动态声明、启动、重试和完成</p></div><span id="event-count" class="panel-tag">0 EVENTS</span></div>
+            <div id="timeline" class="timeline"></div>
+          </section>
+        </div>
+        <footer class="footer"><span>AGENTOS / HARNESS</span><span>本地只读监控界面 · LayerFS FC 检查点仅用于观察</span></footer>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
