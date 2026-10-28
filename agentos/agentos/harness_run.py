@@ -14,7 +14,7 @@ import time
 import webbrowser
 from pathlib import Path
 
-from .artifacts import atomic_json, create_run_dir, init_trace, utc_now
+from .artifacts import atomic_json, create_run_dir, file_sha256, init_trace, utc_now
 from .core import AgentRuntime
 from .harness_ui import start_server
 from .layerfs import LayerFSRuntime
@@ -137,6 +137,9 @@ def main() -> int:
                                     "interrupted" if code == 130 else "error")
                 record["exit_code"] = code
                 record["finished_utc"] = utc_now()
+                # Digests are integrity checks, not cryptographic signatures.
+                record["report_sha256"] = file_sha256(report) if report.is_file() else None
+                record["trace_sha256"] = file_sha256(trace) if trace.is_file() else None
                 atomic_json(manifest, record)
 
         print(f"AgentOS finished: exit={code}; report={report}; trace={trace}",
