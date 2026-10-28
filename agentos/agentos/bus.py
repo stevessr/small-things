@@ -71,7 +71,7 @@ class AgentBus:
             agent_id, tenant = owner
             op = request.get("op")
             request_id = secrets.token_hex(12)
-            observed_op = op if op in {
+            observed_op = op if isinstance(op, str) and op in {
                 "send", "recv", "context_put", "context_get", "spawn", "declare_tasks"
             } else "unknown"
             if self.audit:
