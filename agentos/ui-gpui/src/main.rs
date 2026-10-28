@@ -1,6 +1,6 @@
 #[cfg(feature = "desktop")]
 mod native {
-    use agentos_harness_gpui::{Snapshot, TaskDetail, fetch_local, fetch_task, watch_local_changes, page_range};
+    use agentos_harness_gpui::{Snapshot, TaskDetail, fetch_page, fetch_task, watch_local_changes};
     use std::time::Duration;
     const PAGE_SIZE: usize = 40;
     use gpui::{
@@ -29,10 +29,15 @@ mod native {
             });
             cx.spawn(async move |this, cx| {
                 while rx.recv().await.is_ok() {
+                    let (page, selected) = match this.read_with(cx, |ui, _| {
+                        (ui.page, ui.selected.clone())
+                    }) {
+                        Ok(value) => value,
+                        Err(_) => break,
+                    };
                     let value = cx.background_executor().spawn(async move {
-                        fetch_local(port)
+                        fetch_page(port, page)
                     }).await;
-                    let selected = this.read_with(cx, |ui, _| ui.selected.clone()).ok().flatten();
                     let detail = if let Some(id) = selected.clone() {
                         Some(cx.background_executor().spawn(async move {
                             fetch_task(port, &id)
@@ -41,6 +46,9 @@ mod native {
                         None
                     };
                     let _ = this.update(cx, |ui, cx| {
+                        if ui.page != page {
+                            return; // stale SSE response after a page switch
+                        }
                         ui.apply_snapshot(value);
                         if ui.selected == selected {
                             if let Some(Ok(detail)) = detail {
@@ -82,9 +90,10 @@ mod native {
         fn refresh(&mut self, cx: &mut Context<Self>) {
             let port = self.port;
             let selected = self.selected.clone();
+            let page = self.page;
             cx.spawn(async move |this, cx| {
                 let snapshot = cx.background_executor().spawn(async move {
-                    fetch_local(port)
+                    fetch_page(port, page)
                 }).await;
                 let detail = if let Some(id) = selected.clone() {
                     Some(cx.background_executor().spawn(async move {
@@ -94,6 +103,9 @@ mod native {
                     None
                 };
                 let _ = this.update(cx, |ui, cx| {
+                    if ui.page != page {
+                        return; // old manual request cannot replace newer page
+                    }
                     ui.apply_snapshot(snapshot);
                     if ui.selected == selected {
                         if let Some(Ok(detail)) = detail {
@@ -144,8 +156,8 @@ mod native {
         fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
             let mut items = div().flex().flex_col().gap_2();
             // Lazy, bounded native rendering; no unbounded widget tree.
-            let visible = page_range(self.snapshot.tasks.len(), self.page, PAGE_SIZE);
-            for (id, task) in self.snapshot.tasks.iter().skip(visible.start).take(visible.len()) {
+            // Already paged by the server; render at most 40 visible records.
+            for (id, task) in self.snapshot.tasks.iter().take(PAGE_SIZE) {
                 let task_id = id.clone();
                 let status = task.status.clone();
                 let deps = self.snapshot.dag.get(id).map(|d| d.deps.join(", ")).unwrap_or_default();
@@ -187,7 +199,7 @@ mod native {
                     .child(div().flex().flex_col().gap_1()
                         .child(div().text_xl().font_weight(FontWeight::BOLD).child("AgentOS / HARNESS"))
                         .child(div().text_sm().text_color(rgb(0x8fa3c2))
-                            .child(format!("Local GPUI inspector · {} tasks · {}", self.snapshot.tasks.len(), self.snapshot.isolation))))
+                            .child(format!("Local GPUI inspector · {} tasks · {}", self.snapshot.total, self.snapshot.isolation))))
                     .child(div().p_3().rounded_md().bg(rgb(0x29446a))
                         .id("refresh").cursor_pointer().on_click(cx.listener(Self::reload))
                         .child("刷新快照 ↻")))
@@ -203,17 +215,23 @@ mod native {
                             .child(div().id("page-prev").cursor_pointer()
                                 .on_click(cx.listener(|ui, _, _, cx| {
                                     ui.page = ui.page.saturating_sub(1);
+                                    ui.snapshot.tasks.clear();
+                                    ui.snapshot.dag.clear();
+                                    ui.refresh(cx);
                                     cx.notify();
                                 }))
                                 .child("上一页"))
                             .child(format!("{} / {}",
                                 self.page + 1,
-                                self.snapshot.tasks.len().saturating_sub(1) / PAGE_SIZE + 1))
+                                self.snapshot.total.saturating_sub(1) / PAGE_SIZE + 1))
                             .child(div().id("page-next").cursor_pointer()
                                 .on_click(cx.listener(|ui, _, _, cx| {
                                     ui.page = (ui.page + 1).min(
-                                        ui.snapshot.tasks.len().saturating_sub(1) / PAGE_SIZE
+                                        ui.snapshot.total.saturating_sub(1) / PAGE_SIZE
                                     );
+                                    ui.snapshot.tasks.clear();
+                                    ui.snapshot.dag.clear();
+                                    ui.refresh(cx);
                                     cx.notify();
                                 }))
                                 .child("下一页")))
