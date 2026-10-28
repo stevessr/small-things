@@ -6,6 +6,7 @@ import json
 import os
 import tempfile
 import time
+import uuid
 from pathlib import Path
 
 from .bus import AgentBus
@@ -34,6 +35,9 @@ class AgentRuntime:
         self.pending: set[str] = set()
         self.results: dict[str, AgentResult] = {}
         self.events: list[dict] = []
+        # Runtime execution identity, NOT a native model conversation ID.
+        self.session_id = uuid.uuid4().hex
+        self._next_seq = 0
         self.trace_path = trace_path
         self.context = ContextStore(context_path)
         self.cgroups = CgroupV2(cgroup_root, required=require_cgroup)
@@ -47,7 +51,26 @@ class AgentRuntime:
         self._validate_graph()
 
     def _event(self, name: str, **fields) -> None:
-        event = {"time_ns": time.time_ns(), "event": name, **fields}
+        """Append one observed supervisor fact, with ordered attribution.
+
+        Time is observational only; seq is authoritative ordering. The
+        lineage covers dynamically declared parents. Do not synthesize
+        missing worker-native events or claim this is a native conversation.
+        """
+        task = fields.get("task")
+        agent_path: list[str] = []
+        if isinstance(task, str):
+            seen = {task}
+            ancestor = self.declared_by.get(task)
+            while ancestor is not None and ancestor not in seen:
+                seen.add(ancestor)
+                agent_path.append(ancestor)
+                ancestor = self.declared_by.get(ancestor)
+            agent_path.reverse()
+        event = {"seq": self._next_seq, "session_id": self.session_id,
+                 "agent_path": agent_path, "time_ns": time.time_ns(),
+                 "event": name, **fields}
+        self._next_seq += 1
         self.events.append(event)
         if self.trace_path:
             path = Path(self.trace_path)
