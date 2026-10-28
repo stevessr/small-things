@@ -2,7 +2,7 @@
 //! A single read-only localhost endpoint is the source of truth for web and GPUI.
 use serde::Deserialize;
 use std::collections::BTreeMap;
-use std::io::{Read, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
 
@@ -20,6 +20,7 @@ pub struct Task {
     pub stderr: String,
     pub filesystem_branch: String,
     pub filesystem_commit: Option<String>,
+    pub resource_metrics: serde_json::Value,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -30,6 +31,13 @@ pub struct TaskSpec {
     pub kind: String,
     pub cpu_units: u32,
     pub memory_mib: u64,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct TaskDetail {
+    pub task: Task,
+    pub spec: TaskSpec,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -54,28 +62,84 @@ pub fn parse_snapshot(body: &[u8]) -> Result<Snapshot, String> {
     Ok(value)
 }
 
-/// Never connect to arbitrary hosts or paths: only the UI server on loopback.
-pub fn fetch_local(port: u16) -> Result<Snapshot, String> {
+/// Only the localhost read-only server is reachable: no redirects, proxies or DNS.
+fn connect(port: u16, path: &str) -> Result<BufReader<TcpStream>, String> {
     let endpoint = SocketAddr::from(([127, 0, 0, 1], port));
     let mut stream = TcpStream::connect_timeout(&endpoint, Duration::from_secs(2))
         .map_err(|e| format!("localhost dashboard unavailable: {e}"))?;
-    stream.set_read_timeout(Some(Duration::from_secs(3))).map_err(|e| e.to_string())?;
+    stream.set_read_timeout(Some(Duration::from_secs(25))).map_err(|e| e.to_string())?;
     stream.set_write_timeout(Some(Duration::from_secs(3))).map_err(|e| e.to_string())?;
-    stream.write_all(b"GET /api/state HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\nAccept: application/json\r\n\r\n")
-        .map_err(|e| e.to_string())?;
+    let request = format!(
+        "GET {path} HTTP/1.0\\r\\nHost: 127.0.0.1:{port}\\r\\nConnection: close\\r\\nAccept: application/json, text/event-stream\\r\\n\\r\\n"
+    );
+    stream.write_all(request.as_bytes()).map_err(|e| e.to_string())?;
+    let mut reader = BufReader::new(stream);
+    let mut line = String::new();
+    reader.read_line(&mut line).map_err(|e| e.to_string())?;
+    if !line.starts_with("HTTP/1.1 200 ") && !line.starts_with("HTTP/1.0 200 ") {
+        return Err(format!("dashboard HTTP status: {}", line.trim_end()));
+    }
+    loop {
+        line.clear();
+        reader.read_line(&mut line).map_err(|e| e.to_string())?;
+        if line == "\\r\\n" || line == "\\n" {
+            break;
+        }
+        if line.len() > 4096 {
+            return Err("oversized HTTP header".into());
+        }
+        if line.is_empty() {
+            return Err("incomplete HTTP header".into());
+        }
+    }
+    Ok(reader)
+}
+
+fn get_local(port: u16, path: &str) -> Result<Vec<u8>, String> {
+    let mut reader = connect(port, path)?;
     let mut bytes = Vec::new();
-    stream.take(MAX_REPLY + 4096).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
-    if bytes.len() as u64 >= MAX_REPLY + 4096 {
+    reader.by_ref().take(MAX_REPLY + 1).read_to_end(&mut bytes).map_err(|e| e.to_string())?;
+    if bytes.len() as u64 > MAX_REPLY {
         return Err("HTTP response exceeds 8 MiB".into());
     }
-    let separator = bytes.windows(4).position(|v| v == b"\r\n\r\n")
-        .ok_or("invalid HTTP response")?;
-    let headers = String::from_utf8_lossy(&bytes[..separator]);
-    if !headers.starts_with("HTTP/1.1 200 ") && !headers.starts_with("HTTP/1.0 200 ") {
-        return Err(format!("dashboard HTTP status: {}", headers.lines().next().unwrap_or("?")));
+    Ok(bytes)
+}
+
+/// Fetch small task/status index, NOT stdout/stderr. Detail is lazy on selection.
+pub fn fetch_local(port: u16) -> Result<Snapshot, String> {
+    parse_snapshot(&get_local(port, "/api/state?view=summary")?)
+}
+
+pub fn fetch_task(port: u16, id: &str) -> Result<TaskDetail, String> {
+    if id.is_empty() || id.len() > 64 ||
+       !id.bytes().enumerate().all(|(i, b)| {
+           if i == 0 { b.is_ascii_alphabetic() }
+           else { b.is_ascii_alphanumeric() || b"_.-".contains(&b) }
+       }) {
+        return Err("invalid task ID".into());
     }
-    // Python ThreadingHTTPServer sends Content-Length and no chunked transfer.
-    parse_snapshot(&bytes[separator + 4..])
+    serde_json::from_slice(&get_local(port, &format!("/api/task/{id}"))?)
+        .map_err(|e| e.to_string())
+}
+
+/// Blocking long-lived event stream. Run ONLY on a worker thread. The closure
+/// executes for server pushes, never on a timer. Comment heartbeats are ignored.
+pub fn watch_local_changes<F: FnMut()>(port: u16, mut changed: F) -> Result<(), String> {
+    let mut reader = connect(port, "/api/changes")?;
+    let mut line = Vec::new();
+    loop {
+        line.clear();
+        let bytes = reader.read_until(b'\\n', &mut line).map_err(|e| e.to_string())?;
+        if bytes == 0 {
+            return Err("SSE disconnected".into());
+        }
+        if line.len() > 256 {
+            return Err("oversized SSE event".into());
+        }
+        if line.starts_with(b"data: ") {
+            changed();
+        }
+    }
 }
 
 #[cfg(test)]
