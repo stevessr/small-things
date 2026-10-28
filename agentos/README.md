@@ -1,6 +1,6 @@
 # AgentOS Harness — 多 Agent 系统级执行时原型
 
-> 竞赛起步版本（v0.1），目标平台为 **openEuler 24.03 LTS SP4**（同时在常见 Linux 上运行）。
+> 竞赛原型（v0.3），目标平台为 **openEuler 24.03 LTS SP4**（同时在常见 Linux 上运行）。
 > 本实现是使用 Linux OS 原语的 Agent supervisor，而不是定制内核或成熟的 AI Native OS。
 > 代码位于 `small-things` 的独立 `harness` 分支，不修改既有工具。
 
@@ -65,7 +65,9 @@ declare_tasks([
 ])
 ```
 
-运行 `python3 -m agentos.cli examples/agent-declarations.json`。
+运行 `python3 -m agentos.cli examples/agent-declarations.json --report /tmp/dag.json`。
+最终报告中的 `dag` 保存所有初始与动态任务的依赖、优先级、
+逻辑资源预算，`declared_by` 记录声明来源，JSONL 事件记录每次纳管。
 
 LayerFS 后端通过 `AGENTOS_DECLARATIONS` 环境变量提供任务唯一的
 Workspace 文件路径。Agent 写入 `{"version":1,"tasks":[...]}`，

@@ -164,6 +164,8 @@ print(declare_tasks([
         self.assertGreater(started["combine"], finished["fetch_a"])
         self.assertGreater(started["combine"], finished["fetch_b"])
         self.assertEqual(engine.report()["declared_by"]["combine"], "planner")
+        self.assertEqual(set(engine.report()["dag"]["combine"]["deps"]),
+                         {"planner", "fetch_a", "fetch_b"})
 
     async def test_large_dag_validator_avoids_recursion_limit(self):
         specs = [task("step0")]

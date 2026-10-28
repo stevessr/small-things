@@ -287,5 +287,9 @@ class AgentRuntime:
     def report(self) -> dict:
         return {"budget": vars(self.budget), "isolation": self.cgroups.mode,
                 "tasks": {key: result.as_dict() for key, result in sorted(self.results.items())},
+                "dag": {key: {"deps": list(spec.deps), "kind": spec.kind,
+                              "tenant": spec.tenant, "priority": spec.priority,
+                              "cpu_units": spec.cpu_units, "memory_mib": spec.memory_mib}
+                        for key, spec in sorted(self.tasks.items())},
                 "context": self.context.stats(), "declared_by": self.declared_by,
                 "events": self.events}
