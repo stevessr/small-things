@@ -17,6 +17,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
 
 from .change_watch import ChangeWatch
+from .record_stream import CursorConflict, CursorError, parse_cursor, replay_window
 
 MAX_REPORT = 8 * 1024 * 1024
 MAX_TRACE = 2 * 1024 * 1024
@@ -278,6 +279,26 @@ def create_handler(report_path: Path | None, trace_path: Path | None,
             path = urlsplit(self.path).path
             if path == "/api/changes":
                 self._changes()
+            elif path == "/api/records":
+                # Replay of observed supervisor facts, never model-context resume.
+                # All cursor errors are explicit, no fallback to fabricated seq.
+                try:
+                    query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+                    after, limit, expected = parse_cursor(query)
+                    data = replay_window(read_trace(trace_path), after=after,
+                                         limit=limit, session_id=expected)
+                    self._send(200, json.dumps(data, ensure_ascii=False,
+                                               separators=(",", ":")).encode(),
+                               "application/json; charset=utf-8")
+                except CursorConflict as exc:
+                    self._send(409, json.dumps({"error": str(exc)}).encode(),
+                               "application/json; charset=utf-8")
+                except CursorError as exc:
+                    self._send(400, json.dumps({"error": str(exc)}).encode(),
+                               "application/json; charset=utf-8")
+                except (ValueError, OSError, UnicodeError) as exc:
+                    self._send(500, json.dumps({"error": str(exc)}).encode(),
+                               "application/json; charset=utf-8")
             elif path == "/api/state":
                 try:
                     data = cache.get()
