@@ -117,6 +117,46 @@ class AttributedRuntimeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(replay_window(events, limit=200)["records"], events)
 
 
+class BrokerControlAuditTests(unittest.IsolatedAsyncioTestCase):
+    async def test_authenticated_controls_are_correlated_without_secret_values(self):
+        from agentos.models import Status
+
+        script = """
+from agentos.client import request
+request('context_put', key='credential', value='SUPER_SECRET_FOR_TEST_123456')
+try:
+    request('send', to='nonexistent_agent', payload='PRIVATE_PAYLOAD_123456')
+except Exception:
+    pass
+request('context_get', key='credential')
+"""
+        spec = AgentSpec.parse({"id": "controller", "argv": [
+            sys.executable, "-c", script
+        ]})
+        runtime = AgentRuntime([spec])
+        result = await runtime.run()
+        self.assertEqual(result["controller"].status, Status.SUCCEEDED)
+        requests = [e for e in runtime.events if e["event"] == "control_requested"]
+        handled = [e for e in runtime.events if e["event"] == "control_handled"]
+        self.assertEqual(len(requests), 3)
+        self.assertEqual(len(handled), 3)
+        self.assertEqual({e["request_id"] for e in requests},
+                         {e["request_id"] for e in handled})
+        self.assertEqual({e["op"] for e in requests},
+                         {"context_put", "context_get", "send"})
+        by_id = {e["request_id"]: e for e in requests}
+        for entry in handled:
+            self.assertGreater(entry["seq"], by_id[entry["request_id"]]["seq"])
+            self.assertEqual(entry["task"], "controller")
+        rejected = [e for e in handled if not e["accepted"]]
+        self.assertEqual(len(rejected), 1)
+        self.assertEqual(rejected[0]["code"], "permission_denied")
+        self.assertTrue(all(e["agent_path"] == [] for e in requests + handled))
+        raw = json.dumps(requests + handled)
+        self.assertNotIn("SUPER_SECRET_FOR_TEST", raw)
+        self.assertNotIn("PRIVATE_PAYLOAD", raw)
+        self.assertNotIn("token", raw)
+
 class RecordHttpTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
