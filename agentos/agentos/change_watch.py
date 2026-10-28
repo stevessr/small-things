@@ -83,6 +83,11 @@ class ChangeWatch:
                 if (mask & FLAGS and parent and
                         str(Path(parent) / name) in self.paths):
                     self.signal()
+        # If inotify exits unexpectedly, disconnect SSE subscribers instead of
+        # silently emitting heartbeats forever with stale task state.
+        self._stopped.set()
+        with self.condition:
+            self.condition.notify_all()
 
     def signal(self) -> None:
         with self.condition:
