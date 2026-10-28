@@ -28,6 +28,57 @@ ROUTES = {
 }
 STATES = {"pending", "running", "succeeded", "failed", "blocked"}
 TASK_ID = re.compile(r"^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$")
+MAX_PAGE_SIZE = 40
+MAX_PAGE_OFFSET = 10000
+SUMMARY_FIELDS = frozenset({
+    "id", "status", "elapsed_s", "attempts", "exit_code",
+    "filesystem_branch", "filesystem_commit",
+})
+
+
+def paginate_summary(state: dict, query: dict[str, list[str]]) -> dict:
+    """Project a bounded page of task summaries without changing global counts.
+
+    Pagination is opt-in; existing GET /api/state?view=summary clients still
+    receive the full summary. Task IDs are sorted, so independent clients see
+    consistent deterministic pages for the same snapshot.
+    """
+    page_requested = "offset" in query or "limit" in query
+    if not page_requested:
+        state["events"] = []
+        state["tasks"] = {
+            key: {field: value for field, value in task.items()
+                  if field in SUMMARY_FIELDS}
+            for key, task in state["tasks"].items()
+        }
+        return state
+
+    if "offset" not in query or "limit" not in query:
+        raise ValueError("offset and limit must be supplied together")
+    if any(len(query[key]) != 1 for key in ("offset", "limit")):
+        raise ValueError("offset and limit must each occur exactly once")
+    raw_offset, raw_limit = query["offset"][0], query["limit"][0]
+    if not raw_offset.isascii() or not raw_offset.isdecimal() or (
+            not raw_limit.isascii() or not raw_limit.isdecimal()):
+        raise ValueError("offset and limit must be unsigned decimal integers")
+    offset, limit = int(raw_offset), int(raw_limit)
+    if offset > MAX_PAGE_OFFSET or not 1 <= limit <= MAX_PAGE_SIZE:
+        raise ValueError("offset must be <= 10000 and limit within 1–40")
+
+    keys = sorted(state["tasks"])
+    selected = keys[offset:offset + limit]
+    state["tasks"] = {
+        key: {field: value for field, value in state["tasks"][key].items()
+              if field in SUMMARY_FIELDS}
+        for key in selected
+    }
+    state["dag"] = {key: state["dag"].get(key, {}) for key in selected}
+    state["declared_by"] = {
+        key: state["declared_by"][key] for key in selected
+        if key in state["declared_by"]
+    }
+    state["events"] = []
+    return state
 
 
 def read_report(path: Path | None) -> dict:
@@ -174,17 +225,19 @@ def create_handler(report_path: Path | None, trace_path: Path | None,
                     data = build_state(read_report(report_path), read_trace(trace_path))
                     query = parse_qs(urlsplit(self.path).query)
                     if query.get("view") == ["summary"]:
-                        data["events"] = []
-                        data["tasks"] = {
-                            key: {field: value for field, value in task.items()
-                                  if field in ("id", "status", "elapsed_s", "attempts",
-                                               "exit_code", "filesystem_branch",
-                                               "filesystem_commit")}
-                            for key, task in data["tasks"].items()
-                        }
+                        data = paginate_summary(data, query)
+                    elif "offset" in query or "limit" in query:
+                        raise ValueError("pagination is supported only for view=summary")
                     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode()
                     self._send(200, payload, "application/json; charset=utf-8")
-                except (ValueError, OSError, UnicodeError) as exc:
+                except ValueError as exc:
+                    if any(k in parse_qs(urlsplit(self.path).query) for k in ("offset", "limit")):
+                        self._send(400, json.dumps({"error": str(exc)}).encode(),
+                                   "application/json; charset=utf-8")
+                    else:
+                        self._send(500, json.dumps({"error": str(exc)}).encode(),
+                                   "application/json; charset=utf-8")
+                except (OSError, UnicodeError) as exc:
                     self._send(500, json.dumps({"error": str(exc)}).encode(),
                                "application/json; charset=utf-8")
             elif path.startswith("/api/task/"):
