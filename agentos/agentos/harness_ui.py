@@ -17,7 +17,8 @@ from pathlib import Path
 from urllib.parse import urlsplit, parse_qs
 
 from .change_watch import ChangeWatch
-from .record_stream import CursorConflict, CursorError, parse_cursor, replay_window
+from .record_stream import CursorConflict, CursorError, parse_cursor
+from .record_index import TraceIndex
 
 MAX_REPORT = 8 * 1024 * 1024
 MAX_TRACE = 2 * 1024 * 1024
@@ -258,6 +259,9 @@ class SnapshotCache:
 def create_handler(report_path: Path | None, trace_path: Path | None,
                    changes: ChangeWatch):
     cache = SnapshotCache(report_path, trace_path, changes)
+    # Independent, bounded-memory replay index covers the entire JSONL trace.
+    # The state dashboard intentionally retains its cheaper bounded-tail view.
+    record_index = TraceIndex(trace_path)
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "AgentOS-HarnessUI/0.1"
@@ -295,8 +299,8 @@ def create_handler(report_path: Path | None, trace_path: Path | None,
                 try:
                     query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
                     after, limit, expected = parse_cursor(query)
-                    data = replay_window(read_trace(trace_path), after=after,
-                                         limit=limit, session_id=expected)
+                    data = record_index.read(after=after, limit=limit,
+                                             session_id=expected)
                     self._send(200, json.dumps(data, ensure_ascii=False,
                                                separators=(",", ":")).encode(),
                                "application/json; charset=utf-8")
