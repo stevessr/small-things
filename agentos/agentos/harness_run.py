@@ -98,6 +98,8 @@ def main() -> int:
         record = {
             "schema": 1,
             "run_id": run_dir.name,
+            "session_id": runtime.session_id,
+            "last_seq": -1,
             "status": "running",
             "exit_code": None,
             "started_utc": utc_now(),
@@ -142,6 +144,7 @@ def main() -> int:
                                     "interrupted" if code == 130 else "error")
                 record["exit_code"] = code
                 record["finished_utc"] = utc_now()
+                record["last_seq"] = runtime._next_seq - 1
                 # Digests are integrity checks, not cryptographic signatures.
                 record["report_sha256"] = file_sha256(report) if report.is_file() else None
                 record["trace_sha256"] = file_sha256(trace) if trace.is_file() else None
