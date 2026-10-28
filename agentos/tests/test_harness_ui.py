@@ -181,6 +181,9 @@ class HarnessHttpTests(unittest.TestCase):
         self.assertEqual(detail["spec"]["kind"], "tool")
 
     def test_paginated_summary_preserves_global_counts_and_order(self):
+        # This case tests a finalized report; don't merge the class's default
+        # live "start" fixture into its unrelated 135-task DAG.
+        self.trace.write_text("")
         tasks = {
             f"task_{n:03d}": {
                 "id": f"task_{n:03d}", "status": "succeeded" if n % 2 else "failed",
