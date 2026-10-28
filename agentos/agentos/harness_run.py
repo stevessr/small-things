@@ -14,6 +14,7 @@ from .core import AgentRuntime
 from .harness_ui import start_server
 from .layerfs import LayerFSRuntime
 from .models import AgentSpec, Budget, Status
+from .plan_lint import read_plan
 
 
 def atomic_report(path: Path, value: dict) -> None:
@@ -43,9 +44,7 @@ def main() -> int:
     if args.report.resolve() == args.trace.resolve():
         parser.error("--report and --trace must be different files")
     try:
-        raw = json.loads(args.plan.read_text(encoding="utf-8"))
-        tasks = [AgentSpec.parse(task) for task in raw["tasks"]]
-        budget = Budget.parse(raw.get("budget", {}))
+        tasks, budget, _ = read_plan(args.plan)
         if args.filesystem == "layerfs":
             runtime = LayerFSRuntime(tasks, budget, trace_path=str(args.trace))
         else:

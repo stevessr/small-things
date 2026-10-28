@@ -9,6 +9,7 @@ from pathlib import Path
 from .core import AgentRuntime
 from .layerfs import LayerFSRuntime
 from .models import AgentSpec, Budget, Status
+from .plan_lint import read_plan
 
 
 def main() -> int:
@@ -24,14 +25,13 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        plan = json.loads(args.plan.read_text(encoding="utf-8"))
-        specs = [AgentSpec.parse(raw) for raw in plan["tasks"]]
+        specs, budget, _ = read_plan(args.plan)
         if args.filesystem == "layerfs":
             if args.cgroup_root or args.require_cgroup:
                 raise ValueError("--cgroup-root and --require-cgroup do not apply to LayerFS sandbox execution")
             if args.context_db != ":memory:":
                 raise ValueError("--context-db belongs to the host IPC backend, not LayerFS")
-            runtime = LayerFSRuntime(specs, Budget.parse(plan.get("budget", {})),
+            runtime = LayerFSRuntime(specs, budget,
                                      trace_path=args.trace)
         else:
             runtime = AgentRuntime(specs, Budget.parse(plan.get("budget", {})),
