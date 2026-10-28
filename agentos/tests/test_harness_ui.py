@@ -125,6 +125,12 @@ class HarnessHttpTests(unittest.TestCase):
         self.assertEqual(final["counts"]["succeeded"], 1)
         self.assertEqual(final["tasks"]["start"]["filesystem_commit"], "c1")
 
+    def test_dns_rebinding_host_is_refused(self):
+        request = Request(self.host + "/api/state", headers={"Host": "attacker.example"})
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(request, timeout=5)
+        self.assertEqual(caught.exception.code, 403)
+
     def test_read_only_and_unknown_paths(self):
         for path in ("/../../etc/passwd", "/nonexistent", "/api/commands",
                      "/agentos/README.md"):

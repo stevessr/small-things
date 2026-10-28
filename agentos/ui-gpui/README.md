@@ -9,7 +9,7 @@ The two frontends share exactly the same read-only `/api/state` JSON API.
 ## Run on Wayland / openEuler
 
 First start the local dashboard server (and pass real execution report and trace
-paths); then launch the GPUI window:
+paths), or use `python3 -m agentos.harness_run`; then launch the GPUI window:
 
 ```bash
 cd small-things/agentos

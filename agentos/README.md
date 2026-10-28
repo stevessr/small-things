@@ -1,6 +1,6 @@
 # AgentOS Harness — 多 Agent 系统级执行时原型
 
-> 竞赛原型（v0.3），目标平台为 **openEuler 24.03 LTS SP4**（同时在常见 Linux 上运行）。
+> 竞赛原型（v0.4），目标平台为 **openEuler 24.03 LTS SP4**（同时在常见 Linux 上运行）。
 > 本实现是使用 Linux OS 原语的 Agent supervisor，而不是定制内核或成熟的 AI Native OS。
 > 代码位于 `small-things` 的独立 `harness` 分支，不修改既有工具。
 
@@ -9,6 +9,21 @@
 新增 [LayerFS 1.1.0 + FC 使用指南](docs/layerfs-fc.md)：通过真实 LayerFS SDK 运行独立 Docker Workspace、提交分支，并可选择文件从固定 Commit 恢复到**新 Branch**。先执行 `python3 -m agentos.cli examples/layerfs-demo.json --filesystem layerfs`（需按指南配置真实 LayerFS）。本后端不等于完整宿主 cgroup 配额或跨 Docker Agent IPC。
 
 ## Harness UI · 可观测性控制台
+
+一条命令即可启动运行时和实时监控（运行结束后保持控制台可用，
+按 Ctrl+C 退出；用 `--exit-after-run` 在 CI 中自动结束）：
+
+```bash
+cd small-things/agentos
+python3 -m agentos.harness_run examples/agent-declarations.json \\
+  --port 8765 --open-browser
+```
+
+默认报告保存在 `.agentos/last-report.json`、事件保存在
+`.agentos/last-trace.jsonl`。每次新运行覆盖这两个“上次运行”文件。
+也可以显式指定 `--report`、`--trace`、`--filesystem layerfs`。
+
+
 
 完整浏览器版无需前端依赖，默认只监听本机 `127.0.0.1`，只读数据。
 需要在 `agentos/` 目录运行：
