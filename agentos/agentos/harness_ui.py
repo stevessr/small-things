@@ -154,7 +154,15 @@ def create_handler(report_path: Path | None, trace_path: Path | None):
             self.end_headers()
             self.wfile.write(content)
 
+        def _valid_host(self) -> bool:
+            # Prevent DNS rebinding from an attacker-controlled website.
+            expected = "127.0.0.1:" + str(self.server.server_port)
+            return self.headers.get("Host", "") == expected
+
         def do_GET(self) -> None:
+            if not self._valid_host():
+                self._send(403, b"Invalid Host", "text/plain; charset=utf-8")
+                return
             path = urlsplit(self.path).path
             if path == "/api/state":
                 try:
@@ -178,6 +186,9 @@ def create_handler(report_path: Path | None, trace_path: Path | None):
                 self._send(404, b"Not found", "text/plain; charset=utf-8")
 
         def do_POST(self) -> None:
+            if not self._valid_host():
+                self._send(403, b"Invalid Host", "text/plain; charset=utf-8")
+                return
             self._send(405, b"Read-only dashboard", "text/plain; charset=utf-8")
 
         def log_message(self, format: str, *args) -> None:

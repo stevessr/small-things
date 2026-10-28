@@ -8,6 +8,32 @@
 
 新增 [LayerFS 1.1.0 + FC 使用指南](docs/layerfs-fc.md)：通过真实 LayerFS SDK 运行独立 Docker Workspace、提交分支，并可选择文件从固定 Commit 恢复到**新 Branch**。先执行 `python3 -m agentos.cli examples/layerfs-demo.json --filesystem layerfs`（需按指南配置真实 LayerFS）。本后端不等于完整宿主 cgroup 配额或跨 Docker Agent IPC。
 
+## Harness UI · 可观测性控制台
+
+完整浏览器版无需前端依赖，默认只监听本机 `127.0.0.1`，只读数据。
+需要在 `agentos/` 目录运行：
+
+```bash
+# 终端 1：执行测试任务并记录结构化事件
+python3 -m agentos.cli examples/agent-declarations.json \\
+  --trace /tmp/agentos-live.jsonl --report /tmp/agentos-live.json
+
+# 终端 2：实时查看运行过程（可以先于终端 1 启动）
+python3 -m agentos.harness_ui \\
+  --trace /tmp/agentos-live.jsonl --report /tmp/agentos-live.json \\
+  --port 8765
+# 浏览器打开 http://127.0.0.1:8765
+```
+
+浏览器版支持 DAG 自动布局、状态统计、任务搜索过滤、声明者与依赖、
+FC 检查点、stdout/stderr、事件时间线和 1.2 秒自动刷新。
+无远程命令执行、FC 回退按钮或任意路径读取 API。历史示例：
+`python3 -m agentos.harness_ui --report examples/harness-ui-sample.json`。
+
+新增 [原生 GPUI 查看器](ui-gpui/README.md)：直接消费同一 API，
+提供任务列表、状态与 FC 查看，适合 Linux Wayland 桌面。
+GPUI 原生前端需要额外 Vulkan/图形依赖，不属于 Python 核心的运行条件。
+
 ## 快速开始
 
 需要 Linux 与 Python **3.11+**；核心部分仅依赖 Python 标准库。

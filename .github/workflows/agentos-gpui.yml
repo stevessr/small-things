@@ -23,6 +23,6 @@ jobs:
             libxrandr-dev libxi-dev libxinerama-dev libxcursor-dev libxkbcommon-x11-dev \
             libvulkan-dev libasound2-dev
       - name: Headless snapshot protocol tests
-        run: cargo test --manifest-path agentos/ui-gpui/Cargo.toml --no-default-features --locked
+        run: cargo test --manifest-path agentos/ui-gpui/Cargo.toml --no-default-features
       - name: Check native GPUI frontend
-        run: cargo check --manifest-path agentos/ui-gpui/Cargo.toml --features desktop --locked
+        run: cargo check --manifest-path agentos/ui-gpui/Cargo.toml --features desktop

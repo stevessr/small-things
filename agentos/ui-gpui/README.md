@@ -29,7 +29,7 @@ For a fast headless smoke test of the shared read-only protocol:
 cargo test --no-default-features
 ```
 
-The native renderer is **not** required by the main Python/openEuler CI jobs.
+The native renderer is **not** required by the main Python/openEuler CI jobs; it has a dedicated GitHub Actions compile check.
 Heavy GPU/platform builds are tested separately. On remote/headless hosts, use
 the browser frontend; never expose the Harness UI HTTP server to untrusted
 networks (it binds to localhost only).

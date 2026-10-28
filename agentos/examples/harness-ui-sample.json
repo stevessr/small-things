@@ -1,0 +1,112 @@
+{
+  "budget": {
+    "cpu_units": 4,
+    "memory_mib": 1024,
+    "max_tasks": 24
+  },
+  "isolation": "layerfs-docker (sample data)",
+  "tasks": {
+    "planner": {
+      "id": "planner",
+      "status": "succeeded",
+      "attempts": 1,
+      "elapsed_s": 0.342,
+      "stdout": "Declared 3 tasks"
+    },
+    "gather_linux": {
+      "id": "gather_linux",
+      "status": "succeeded",
+      "attempts": 1,
+      "elapsed_s": 0.48,
+      "stdout": "Linux report collected",
+      "filesystem_branch": "ag-gather-linux-demo",
+      "filesystem_commit": "fc-gather1"
+    },
+    "gather_docs": {
+      "id": "gather_docs",
+      "status": "succeeded",
+      "attempts": 1,
+      "elapsed_s": 0.73,
+      "stdout": "Documentation collected",
+      "filesystem_branch": "ag-gather-docs-demo",
+      "filesystem_commit": "fc-gather2"
+    },
+    "review": {
+      "id": "review",
+      "status": "running",
+      "attempts": 1,
+      "elapsed_s": 0,
+      "stdout": ""
+    },
+    "publish": {
+      "id": "publish",
+      "status": "pending",
+      "attempts": 0,
+      "elapsed_s": 0
+    }
+  },
+  "dag": {
+    "planner": {
+      "deps": [],
+      "kind": "model",
+      "tenant": "default",
+      "priority": 10,
+      "cpu_units": 1,
+      "memory_mib": 256
+    },
+    "gather_linux": {
+      "deps": [
+        "planner"
+      ],
+      "kind": "tool",
+      "tenant": "default",
+      "priority": 4,
+      "cpu_units": 1,
+      "memory_mib": 128
+    },
+    "gather_docs": {
+      "deps": [
+        "planner"
+      ],
+      "kind": "tool",
+      "tenant": "default",
+      "priority": 3,
+      "cpu_units": 1,
+      "memory_mib": 128
+    },
+    "review": {
+      "deps": [
+        "gather_linux",
+        "gather_docs"
+      ],
+      "kind": "model",
+      "tenant": "default",
+      "priority": 8,
+      "cpu_units": 2,
+      "memory_mib": 384
+    },
+    "publish": {
+      "deps": [
+        "review"
+      ],
+      "kind": "tool",
+      "tenant": "default",
+      "priority": 1,
+      "cpu_units": 1,
+      "memory_mib": 128
+    }
+  },
+  "declared_by": {
+    "gather_linux": "planner",
+    "gather_docs": "planner",
+    "review": "planner",
+    "publish": "planner"
+  },
+  "context": {
+    "hits": 2,
+    "misses": 1,
+    "written_raw_bytes": 4096,
+    "written_stored_bytes": 1024
+  },
+  "events": []
+}
