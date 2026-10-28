@@ -3,7 +3,7 @@ mod native {
     use agentos_harness_gpui::{Snapshot, fetch_local};
     use gpui::{
         App, Bounds, Context, Window, WindowBounds, WindowOptions,
-        div, prelude::*, px, rgb, size,
+        div, prelude::*, px, rgb, size, FontWeight, InteractiveElement, StatefulInteractiveElement,
     };
     use gpui_platform::application;
 
@@ -51,12 +51,12 @@ mod native {
                     div().p_3().rounded_md()
                         .bg(rgb(if selected { 0x284268 } else { 0x18283f }))
                         .border_1().border_color(rgb(if selected { 0x89aaff } else { 0x34465c }))
-                        .cursor_pointer()
+                        .id(format!("task-{id}")).cursor_pointer()
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.selected = Some(task_id.clone()); cx.notify();
                         }))
                         .child(div().flex().justify_between()
-                            .child(div().text_sm().font_semibold().child(id.clone()))
+                            .child(div().text_sm().font_weight(FontWeight::SEMIBOLD).child(id.clone()))
                             .child(div().text_xs().text_color(Self::status_color(&status)).child(status)))
                         .child(div().mt_2().text_xs().text_color(rgb(0x8da4c1))
                             .child(if deps.is_empty() { "ROOT".to_string() } else { format!("deps: {deps}") }))
@@ -80,11 +80,11 @@ mod native {
                 .text_color(rgb(0xe6efff))
                 .child(div().p_5().flex().items_center().justify_between()
                     .child(div().flex().flex_col().gap_1()
-                        .child(div().text_xl().font_bold().child("AgentOS / HARNESS"))
+                        .child(div().text_xl().font_weight(FontWeight::BOLD).child("AgentOS / HARNESS"))
                         .child(div().text_sm().text_color(rgb(0x8fa3c2))
                             .child(format!("Local GPUI inspector · {} tasks · {}", self.snapshot.tasks.len(), self.snapshot.isolation))))
                     .child(div().p_3().rounded_md().bg(rgb(0x29446a))
-                        .cursor_pointer().on_click(cx.listener(Self::reload))
+                        .id("refresh").cursor_pointer().on_click(cx.listener(Self::reload))
                         .child("刷新快照 ↻")))
                 .child(div().px_5().pb_3().flex().gap_3()
                     .child(summary_tile("TOTAL", self.snapshot.total.to_string(), 0x93b3ff))
@@ -92,11 +92,11 @@ mod native {
                     .child(summary_tile("SUCCESS", self.snapshot.counts.get("succeeded").copied().unwrap_or(0).to_string(), 0x4ee4af))
                     .child(summary_tile("FAILED", self.snapshot.counts.get("failed").copied().unwrap_or(0).to_string(), 0xff8796)))
                 .child(div().flex().flex_1().overflow_hidden().gap_3().px_5().pb_5()
-                    .child(div().w(px(430.)).h_full().overflow_y_scroll().p_3()
+                    .child(div().id("task-scroll").w(px(430.)).h_full().overflow_y_scroll().p_3()
                         .bg(rgb(0x111d30)).rounded_md().child(items))
-                    .child(div().flex_1().h_full().overflow_y_scroll().p_4()
+                    .child(div().id("details-scroll").flex_1().h_full().overflow_y_scroll().p_4()
                         .bg(rgb(0x111d30)).rounded_md()
-                        .child(div().text_lg().font_semibold().mb_3().child(detail_id))
+                        .child(div().text_lg().font_weight(FontWeight::SEMIBOLD).mb_3().child(detail_id))
                         .child(div().text_sm().text_color(rgb(0xbed0e7)).whitespace_normal().child(details))));
             if let Some(message) = &self.error {
                 body = body.child(div().p_3().bg(rgb(0x6c2c3a)).child(message.clone()));
@@ -109,7 +109,7 @@ mod native {
         div().flex_1().p_3().rounded_md().bg(rgb(0x17243a)).border_1()
             .border_color(rgb(0x2d3d57))
             .child(div().text_xs().text_color(rgb(0x90a3be)).child(label.to_string()))
-            .child(div().mt_1().text_xl().font_bold().text_color(rgb(color)).child(value))
+            .child(div().mt_1().text_xl().font_weight(FontWeight::BOLD).text_color(rgb(color)).child(value))
     }
 
     pub fn run() {
