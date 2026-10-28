@@ -68,6 +68,10 @@ python3 -m bench.benchmark --tasks 6 --parallel 3 --sleep 0.05 --trials 2
 
 ## 6. CI 失败快速定位
 
+每轮改动的最终验收使用 [发布检查清单](release-checklist.md)。CI 通过只证明相应测试覆盖的功能，不代替 LayerFS/Docker/FUSE 实机和真实 Wayland/Vulkan 会话验证。
+
+
+
 查看 [Harness CI](https://github.com/stevessr/small-things/actions/workflows/agentos-harness.yml) 和 [GPUI CI](https://github.com/stevessr/small-things/actions/workflows/agentos-gpui.yml)：
 
 - Python 单测失败：先看失败的测试方法，修复后执行整套 `unittest discover`。

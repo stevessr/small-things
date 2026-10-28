@@ -62,6 +62,10 @@ LayerFS 的预算字段尚未映射为 Docker cgroup 真实配额，Host IPC 未
 - [完整 Trace 语义](docs/trace-format.md) · [能力成熟度](docs/capabilities.md)
 - [可执行教程](docs/tutorials/README.md) · [ADR](docs/adr/README.md) · [实验复现模板](docs/reproducibility.md)
 
+## 版本与验收
+
+- [变更记录](CHANGELOG.md) · [发布/答辩检查清单](docs/release-checklist.md)
+
 ## 测试与开发
 
 ```bash

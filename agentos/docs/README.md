@@ -21,6 +21,8 @@
 - [架构决策记录 ADR](adr/README.md)
 - [贡献与 PR 检查清单](../CONTRIBUTING.md)
 
+补充：[版本变更日志](../CHANGELOG.md) · [演示/发布证据清单](release-checklist.md)。
+
 ## 最短验证路径
 
 ```bash

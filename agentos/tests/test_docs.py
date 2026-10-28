@@ -17,6 +17,7 @@ from agentos.models import AgentResult, Status
 
 ROOT = Path(__file__).resolve().parent.parent
 MARKDOWN = [ROOT / "README.md", ROOT / "CONTRIBUTING.md",
+            ROOT / "CHANGELOG.md",
             ROOT / "ui-gpui" / "README.md",
             *sorted((ROOT / "docs").rglob("*.md"))]
 LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
@@ -111,6 +112,15 @@ class DocumentationContractTests(unittest.TestCase):
         doc = (ROOT / "docs" / "trace-format.md").read_text()
         for event in declared:
             self.assertIn(chr(96) + event + chr(96), doc)
+
+    def test_version_consistency_with_python_package_and_changelog(self):
+        import tomllib
+        project = tomllib.loads((ROOT / "pyproject.toml").read_text())
+        openapi = json.loads((ROOT / "docs" / "openapi.json").read_text())
+        version = project["project"]["version"]
+        self.assertEqual(version, openapi["info"]["version"])
+        self.assertIn("v" + ".".join(version.split(".")[:2]),
+                      (ROOT / "CHANGELOG.md").read_text())
 
     def test_openapi_references_all_exist(self):
         api = json.loads((ROOT / "docs" / "openapi.json").read_text())

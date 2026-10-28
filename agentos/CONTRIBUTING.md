@@ -35,6 +35,8 @@ node --check agentos/ui/app.js
 | 调整安装入口或 CLI | `docs/deployment.md`、`docs/troubleshooting.md`、`tests/test_docs.py` |
 | 修改基准或统计 | `docs/reproducibility.md`、`docs/testing.md`，不得混淆合成 workload 与 LLM |
 
+变更记录必须按 [CHANGELOG](CHANGELOG.md) 更新，合并/答辩前按照 [发布验收检查清单](docs/release-checklist.md) 逐项核对。机器可读的 API `info.version` 必须与 `pyproject.toml` 包版本一致。
+
 ## 3. 如何写可复现问题
 
 提交 Issue/PR 时提供：Git SHA、OS/内核、Python/Node/Rust 版本、运行命令（去除秘密）、最小 Plan JSON、完整报错、实际状态/预期状态；涉及 LayerFS 时附上 SDK/daemon/Docker 版本、是否真实 Store 与 FUSE；涉及 GPUI 时附 Wayland/X11、分辨率缩放、Vulkan 驱动与是否多屏。
