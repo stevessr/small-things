@@ -74,7 +74,7 @@ mod native {
                 Ok(snapshot) => {
                     self.snapshot = snapshot;
                     self.error = None;
-                    let last_page = self.snapshot.tasks.len().saturating_sub(1) / PAGE_SIZE;
+                    let last_page = self.snapshot.total.saturating_sub(1) / PAGE_SIZE;
                     self.page = self.page.min(last_page);
                     if let Some(selected) = &self.selected {
                         if !self.snapshot.tasks.contains_key(selected) {
@@ -217,6 +217,8 @@ mod native {
                                     ui.page = ui.page.saturating_sub(1);
                                     ui.snapshot.tasks.clear();
                                     ui.snapshot.dag.clear();
+                                    ui.selected = None;
+                                    ui.selected_detail = None;
                                     ui.refresh(cx);
                                     cx.notify();
                                 }))
