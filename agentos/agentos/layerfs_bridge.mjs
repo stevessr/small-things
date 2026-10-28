@@ -5,7 +5,6 @@
  */
 import { pathToFileURL } from "node:url";
 import { randomBytes } from "node:crypto";
-import { readFile } from "node:fs/promises";
 
 const MAX_REQUEST = 128 * 1024;
 const MAX_OUTPUT = 512 * 1024;

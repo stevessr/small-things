@@ -79,6 +79,8 @@ class AgentResult:
     elapsed_s: float = 0.0
     isolation: str = "unknown"
     resource_metrics: dict = field(default_factory=dict)
+    filesystem_branch: str = ""
+    filesystem_commit: str | None = None
 
     def as_dict(self) -> dict:
         return {**vars(self), "status": self.status.value}

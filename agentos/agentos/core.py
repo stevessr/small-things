@@ -154,10 +154,12 @@ class AgentRuntime:
                 if code == 0 and not reason:
                     result.status = Status.SUCCEEDED
                     break
+                if metrics.get("layerfs_unknown"):
+                    break  # uncertain Workspace outcome: never silently replay
                 if number < spec.retries:
                     self._event("retry", task=spec.id, attempt=number + 1, error=result.error)
                     await asyncio.sleep(min(1.0, 0.05 * 2 ** number))
-            else:
+            if result.status != Status.SUCCEEDED:
                 result.status = Status.FAILED
         finally:
             self.bus.unregister(token)
