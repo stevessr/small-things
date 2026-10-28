@@ -71,6 +71,8 @@ def paginate_summary(state: dict, query: dict[str, list[str]]) -> dict:
     if not raw_offset.isascii() or not raw_offset.isdecimal() or (
             not raw_limit.isascii() or not raw_limit.isdecimal()):
         raise PageQueryError("offset and limit must be unsigned decimal integers")
+    if len(raw_offset) > 8 or len(raw_limit) > 3:
+        raise PageQueryError("offset or limit has too many digits")
     offset, limit = int(raw_offset), int(raw_limit)
     if offset > MAX_PAGE_OFFSET or not 1 <= limit <= MAX_PAGE_SIZE:
         raise PageQueryError("offset must be <= 10000 and limit within 1–40")
