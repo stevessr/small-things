@@ -18,7 +18,7 @@ python3 -m agentos.harness_run examples/agent-declarations.json \
 
 | 文件 | 含义 | 写入方式 |
 | --- | --- | --- |
-| `manifest.json` | run_id、开始/结束时间、执行后端、计划 SHA-256、结果码、报告/Trace 摘要 | 临时文件 + 原子替换 |
+| `manifest.json` | run_id、独立的 supervisor session_id、最后 seq、开始/结束时间、计划 SHA-256、结果码及文件摘要 | 临时文件 + 原子替换 |
 | `report.json` | 终局 DAG/任务状态、错误、stdout/stderr、FC Commit 等 | 临时文件 + 原子替换 |
 | `trace.jsonl` | 执行事件，每行 JSON 对象 | 初始事件原子写入，运行中追加 |
 
@@ -39,6 +39,8 @@ python3 -m agentos.sessions verify \
 `verify` 对比 `report.json` 和 `trace.jsonl` 的 SHA-256，并检查 JSON/JSONL 基本结构。退出码：**0** 完整、**2** 缺失/损坏/未结束的记录。一个退出码为 1 的 Agent 运行仍可能有**完整且校验通过**的记录；`status=failed` 与 `integrity=invalid` 是完全不同的概念。
 
 `manifest.status` 取值 `running/succeeded/failed/error/interrupted`：运行中尚无终局报告或摘要，因此 `integrity=incomplete` 是正常值；异常崩溃后可能保留 `running`，不会自动推定任务已恢复或已回滚。**不支持从该目录继续调度未完成任务**。
+
+新增 `session_id` 与 `last_seq` 用于重放 Trace 的游标完整性验证；`session_id` 与运行目录名 `run_id` 是两种不同身份，并非 Claude/Codex 等原生模型会话 ID。记录文件中途缺失、序列断裂应报错而非自动续跑。
 
 SHA-256 是**偶发损坏检测**，不是数字签名或不可抵赖审计：能够修改报告的攻击者也能重新计算摘要并修改 manifest。若要长期保留可信证据，应将文件封存到独立备份/签名系统。
 

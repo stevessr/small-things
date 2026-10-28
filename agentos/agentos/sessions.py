@@ -57,10 +57,24 @@ def inspect_run(directory: Path) -> dict:
             report = json.loads((directory / "report.json").read_text(encoding="utf-8"))
             if not isinstance(report, dict) or not isinstance(report.get("tasks"), dict):
                 raise ValueError("report does not contain tasks object")
+            if data.get("session_id") and report.get("session_id") != data["session_id"]:
+                raise ValueError("report and manifest session IDs differ")
+            previous = -1
             with (directory / "trace.jsonl").open("r", encoding="utf-8") as stream:
                 for line in stream:
-                    if line.strip() and not isinstance(json.loads(line), dict):
+                    if not line.strip():
+                        continue
+                    event = json.loads(line)
+                    if not isinstance(event, dict):
                         raise ValueError("trace contains a nonobject JSON record")
+                    if data.get("session_id"):
+                        if event.get("session_id") != data["session_id"]:
+                            raise ValueError("trace has a different session ID")
+                        if event.get("seq") != previous + 1:
+                            raise ValueError("trace sequence is incomplete or unordered")
+                        previous += 1
+            if data.get("session_id") and previous != data.get("last_seq"):
+                raise ValueError("trace final sequence does not match manifest")
         except (OSError, UnicodeError, ValueError) as exc:
             result["integrity"] = "invalid"
             result["errors"].append(f"invalid JSON artifact: {exc}")

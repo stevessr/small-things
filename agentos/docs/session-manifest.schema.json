@@ -16,7 +16,9 @@
     "plan_sha256",
     "task_count_initial",
     "report",
-    "trace"
+    "trace",
+    "session_id",
+    "last_seq"
   ],
   "properties": {
     "schema": {
@@ -84,6 +86,16 @@
     "trace_sha256": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "session_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$",
+      "description": "Supervisor execution identity; not a native coding-agent conversation"
+    },
+    "last_seq": {
+      "type": "integer",
+      "minimum": -1,
+      "description": "Last recorded supervisor event seq, -1 while run remains in progress"
     }
   }
 }

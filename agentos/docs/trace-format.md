@@ -76,6 +76,8 @@ curl -fsS 'http://127.0.0.1:8765/api/records?limit=100'
 
 **注意**：示例省略了 `AgentResult` 的部分字段，仅用于说明结构。实际运行结果中的 `tasks` 包含完整字段。UI 通过 `build_state` 合并当前 Trace 和终局 Report，得到独立的 `schema=1` 视图。
 
+终局报告会写入 Supervisor `session_id` 和 `last_seq`；独立运行会话的 `manifest.json` 同样保留它们，供只读 `agentos.sessions verify` 校验 Trace 的顺序和身份。参见 [会话核验](run-sessions.md)。
+
 ## 数据生命周期与隐私
 
 - Trace 不携带任务完整 stdout/stderr；但 `retry/declaration_rejected/finished` 的错误和指标可能包含敏感信息。

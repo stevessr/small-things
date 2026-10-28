@@ -72,6 +72,8 @@ class HarnessRunnerTests(unittest.TestCase):
                 metadata = json.loads((session / "manifest.json").read_text())
                 self.assertEqual(metadata["run_id"], session.name)
                 self.assertEqual(metadata["status"], "succeeded")
+                self.assertRegex(metadata["session_id"], r"^[a-f0-9]{32}$")
+                self.assertGreaterEqual(metadata["last_seq"], 0)
                 self.assertEqual(metadata["exit_code"], 0)
                 self.assertIsNotNone(metadata["finished_utc"])
                 self.assertEqual(len(metadata["plan_sha256"]), 64)
