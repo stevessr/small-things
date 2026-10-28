@@ -156,6 +156,22 @@ class HarnessRunnerTests(unittest.TestCase):
             self.assertTrue(any("missing" in error or "sequence" in error
                                 for error in integrity["errors"]))
 
+            # Recompute the checksum to show that syntactically unfinished
+            # evidence cannot be certified by matching digests alone.
+            trace.write_text("".join(json.dumps({
+                "seq": seq, "session_id": session_id, "event": "admitted",
+                "time_ns": seq + 1, "agent_path": [], "task": "a"
+            }) + "\\n" for seq in range(3)))
+            with trace.open("a") as stream:
+                stream.write('{"seq":3,"session_id":')
+            manifest_path = session / "manifest.json"
+            manifest = json.loads(manifest_path.read_text())
+            manifest["trace_sha256"] = file_sha256(trace)
+            manifest_path.write_text(json.dumps(manifest))
+            integrity = inspect_run(session)
+            self.assertEqual(integrity["integrity"], "invalid")
+            self.assertIn("incomplete trailing", " ".join(integrity["errors"]))
+
     def test_running_session_is_incomplete_not_invalid(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
