@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 from agentos.harness_run import atomic_report
+from agentos.sessions import inspect_run, list_runs
 
 
 class HarnessRunnerTests(unittest.TestCase):
@@ -74,6 +75,9 @@ class HarnessRunnerTests(unittest.TestCase):
                 self.assertEqual(metadata["exit_code"], 0)
                 self.assertIsNotNone(metadata["finished_utc"])
                 self.assertEqual(len(metadata["plan_sha256"]), 64)
+                self.assertEqual(len(metadata["report_sha256"]), 64)
+                self.assertEqual(len(metadata["trace_sha256"]), 64)
+                self.assertEqual(inspect_run(session)["integrity"], "ok")
                 report = json.loads((session / "report.json").read_text())
                 self.assertEqual(len(report["tasks"]), 4)
 
@@ -111,6 +115,44 @@ class HarnessRunnerTests(unittest.TestCase):
             self.assertIn("Cannot bind", completed.stderr)
             self.assertEqual(report.read_text(), "previous report untouched")
             self.assertEqual(trace.read_text(), "previous trace untouched")
+
+    def test_run_history_cli_and_integrity_detect_tampering(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            completed = subprocess.run([
+                sys.executable, "-m", "agentos.harness_run",
+                "examples/demo.json", "--runs-root", str(root),
+                "--port", "0", "--exit-after-run"
+            ], cwd=Path(__file__).resolve().parent.parent,
+                capture_output=True, text=True, timeout=20)
+            self.assertEqual(completed.returncode, 0,
+                             completed.stdout + completed.stderr)
+            self.assertEqual(len(list_runs(root)), 1)
+            session = next(root.iterdir())
+            verified = subprocess.run([
+                sys.executable, "-m", "agentos.sessions", "verify",
+                "--session", str(session), "--format", "json"
+            ], cwd=Path(__file__).resolve().parent.parent,
+                capture_output=True, text=True, timeout=10)
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertEqual(json.loads(verified.stdout)["integrity"], "ok")
+            listed = subprocess.run([
+                sys.executable, "-m", "agentos.sessions", "list",
+                "--root", str(root), "--format", "json"
+            ], cwd=Path(__file__).resolve().parent.parent,
+                capture_output=True, text=True, timeout=10)
+            self.assertEqual(listed.returncode, 0, listed.stderr)
+            self.assertEqual(json.loads(listed.stdout)[0]["run_id"], session.name)
+            with (session / "trace.jsonl").open("a") as stream:
+                stream.write('{"event":"fake"}\n')
+            self.assertEqual(inspect_run(session)["integrity"], "invalid")
+            verified = subprocess.run([
+                sys.executable, "-m", "agentos.sessions", "verify",
+                "--session", str(session)
+            ], cwd=Path(__file__).resolve().parent.parent,
+                capture_output=True, text=True, timeout=10)
+            self.assertEqual(verified.returncode, 2)
+            self.assertIn("checksum mismatch", verified.stdout)
 
     def test_session_records_failed_task_as_failed(self):
         with tempfile.TemporaryDirectory() as temporary:
