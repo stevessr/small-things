@@ -94,6 +94,19 @@ class IndexedReplayTests(unittest.TestCase):
         with self.assertRaisesRegex(CursorConflict, "oversized"):
             self.index.read()
 
+    def test_ambiguous_json_and_missing_fact_fields_are_rejected(self):
+        cases = [
+            '{"seq":0,"seq":0,"session_id":"' + SID + '","event":"admitted","time_ns":1,"agent_path":[]}\n',
+            '{"seq":0,"session_id":"' + SID + '","event":"admitted","time_ns":NaN,"agent_path":[]}\n',
+            '{"seq":0,"session_id":"' + SID + '","event":"admitted","time_ns":1,"agent_path":null}\n',
+            '{"seq":0,"session_id":"' + SID + '","event":"admitted","time_ns":1}\n',
+        ]
+        for raw in cases:
+            with self.subTest(raw=raw[:50]):
+                self.path.write_text(raw)
+                with self.assertRaises(CursorConflict):
+                    self.index.read()
+
     def test_rotation_and_same_size_rewrite_never_mix_sessions(self):
         append(self.path, event(0), event(1))
         self.assertEqual(self.index.read()["session_id"], SID)
