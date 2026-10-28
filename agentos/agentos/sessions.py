@@ -65,6 +65,8 @@ def inspect_run(directory: Path) -> dict:
                 # complete file, including seq/identity/JSON semantics.
                 index = TraceIndex(directory / "trace.jsonl")
                 verified = index.read(limit=1)
+                if index._scan_pos != (directory / "trace.jsonl").stat().st_size:
+                    raise ValueError("final trace contains an incomplete trailing JSONL record")
                 if verified["session_id"] != data["session_id"]:
                     raise ValueError("trace has a different session ID")
                 if index._last_seq != data.get("last_seq"):
