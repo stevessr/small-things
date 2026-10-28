@@ -266,5 +266,15 @@ document.querySelectorAll(".nav-link").forEach(link=>link.addEventListener("clic
   document.querySelectorAll(".nav-link").forEach(n=>n.classList.remove("active"));
   link.classList.add("active");
 }));
-poll();
-setInterval(poll,1200);
+// EventSource is a push subscription; refresh happens only when files change.
+if (typeof EventSource !== "undefined") {
+  const stream = new EventSource("/api/changes");
+  stream.addEventListener("message", () => poll());
+  stream.addEventListener("error", () => {
+    const connection = $("connection");
+    connection.classList.add("offline");
+    connection.lastChild.textContent = "变更通知断开，可手动刷新";
+  });
+} else {
+  poll(); // Non-SSE browsers retain a manual refresh button.
+}

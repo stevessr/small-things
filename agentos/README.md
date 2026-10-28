@@ -41,7 +41,7 @@ python3 -m agentos.harness_ui \\
 ```
 
 浏览器版支持 DAG 自动布局、状态统计、任务搜索过滤、声明者与依赖、
-FC 检查点、stdout/stderr、事件时间线和 1.2 秒自动刷新。
+FC 检查点、stdout/stderr、事件时间线和 inotify → SSE 事件驱动刷新。
 无远程命令执行、FC 回退按钮或任意路径读取 API。历史示例：
 `python3 -m agentos.harness_ui --report examples/harness-ui-sample.json`。
 

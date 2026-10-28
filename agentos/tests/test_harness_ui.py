@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
+import time
 from importlib.resources import files
 import tempfile
 import threading
@@ -137,6 +140,44 @@ class HarnessHttpTests(unittest.TestCase):
         with self.assertRaises(HTTPError) as caught:
             urlopen(request, timeout=5)
         self.assertEqual(caught.exception.code, 403)
+
+    @unittest.skipUnless(sys.platform == "linux", "inotify is Linux only")
+    def test_inotify_pushes_after_report_atomic_rename(self):
+        # Live SSE first signals initial snapshot, then real filesystem mutation.
+        with urlopen(self.host + "/api/changes", timeout=10) as stream:
+            self.assertEqual(stream.headers.get_content_type(), "text/event-stream")
+            first = stream.readline().decode()
+            self.assertTrue(first.startswith("data: "))
+            stream.readline()  # blank event delimiter
+            temp = self.report.with_name("report.new")
+            temp.write_text(json.dumps({"tasks": {"start": {"status": "succeeded"}}}))
+            os.replace(temp, self.report)
+            update = stream.readline().decode()
+            self.assertTrue(update.startswith("data: "), msg=update)
+            self.assertNotEqual(update, first)
+
+    def test_summary_and_lazy_task_detail(self):
+        self.report.write_text(json.dumps({
+            "tasks": {"start": {"id": "start", "status": "succeeded",
+                                "stdout": "private large log", "stderr": "error details",
+                                "resource_metrics": {"memory_peak": 123}}},
+            "dag": {"start": {"deps": [], "kind": "tool"}}
+        }))
+        with urlopen(self.host + "/api/state?view=summary", timeout=5) as response:
+            summary = json.load(response)
+        self.assertNotIn("stdout", summary["tasks"]["start"])
+        self.assertNotIn("resource_metrics", summary["tasks"]["start"])
+        self.assertEqual(summary["events"], [])
+        with urlopen(self.host + "/api/task/start", timeout=5) as response:
+            detail = json.load(response)
+        self.assertEqual(detail["task"]["stdout"], "private large log")
+        self.assertEqual(detail["task"]["resource_metrics"]["memory_peak"], 123)
+        self.assertEqual(detail["spec"]["kind"], "tool")
+
+    def test_lazy_detail_rejects_unregistered_task(self):
+        for name in ["nonexistent", "..", "invalid id"]:
+            with self.assertRaises(HTTPError):
+                urlopen(self.host + "/api/task/" + name.replace(" ", "%20"), timeout=5)
 
     def test_read_only_and_unknown_paths(self):
         for path in ("/../../etc/passwd", "/nonexistent", "/api/commands",
