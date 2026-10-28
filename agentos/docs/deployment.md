@@ -14,6 +14,17 @@ python3 -m unittest discover -s tests -v
 
 **Doctor 的“OK”仅是静态前置条件检测**：检测到 cgroup v2 挂载不代表已获系统委派，检测到 Docker CLI 不代表守护进程/镜像可用，检测到 Wayland 环境变量不保证 GPU 驱动、字体或 GPUI 本地窗口一定可启动。`doctor` 不安装任何依赖，不运行 Docker 或 Agent。
 
+## 启动前确认后端能力
+
+```bash
+python3 -m agentos.capabilities --backend host --format json
+python3 -m agentos.capabilities --backend layerfs --format json
+# 请求不支持的能力时，在执行前明确拒绝，而不是静默忽略：
+python3 -m agentos.cli examples/demo.json --require-capability native_resume
+```
+
+能力声明是编译期/实现级别的明确契约：`supported` 表示代码路径存在，`conditional` 仍需真实环境证据，`unsupported` 不会假装成功。上例的 native_resume 会退出 2，不会启动任何 Agent；`--require-capability` 允许重复指定多个特性。这不代表 LayerFS SDK 存在或图形环境已可用，仍需 Doctor/实机集成测试。参见 [OAR 对照](oar-comparison.md)。
+
 ## 1. Host 后端：有数据、有 DAG、有 Trace
 
 ```bash

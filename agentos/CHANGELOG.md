@@ -6,6 +6,7 @@
 
 - 本机只读 Web Harness UI，DAG、任务状态、日志、FC 元数据及时间线。
 - Linux inotify → SSE 通知；GPUI Rust 原生查看器采用按需任务详情、每页最多 40 个任务、显示器裁剪尺寸。
+- 参考 [botiverse/oar](https://github.com/botiverse/oar) 的事实顺序/归属与能力边界，加入 `seq/session_id/agent_path`、严格 `/api/records` 游标、认证后的 IPC 控制处理记录及显式后端能力拒绝。
 - 新增 `--runs-root` 独立运行会话、原子终局文件与 0600/0700 权限、报告/Trace SHA-256 校验、只读 `agentos.sessions` 历史查询。
 - `harness_run` 一键运行 + 观察；`plan_lint` 无副作用计划预检；`doctor` 无副作用环境诊断。
 - 完整中文文档：架构、配置、LayerFS/FC、部署、API/OpenAPI 3.1、Trace、事件、测试、实验复现、教程、贡献与 ADR。

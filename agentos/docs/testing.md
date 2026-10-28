@@ -24,6 +24,8 @@ python3 -m bench.benchmark --tasks 6 --parallel 3 --sleep 0.05 --trials 2
 | `tests/test_layerfs.py` + `tests/fake_layerfs.mjs` | 桥接协议、Commit 元数据、Manifest、FC history/rewind/files 的逻辑 | **真实 LayerFS SDK、Docker、daemon、FUSE** |
 | `tests/test_harness_ui.py` | 本地 HTTP、Host 头、防目录穿越、inotify→SSE、只读 API、135 任务分页/非法范围/错误码、按需详情 | 真实浏览器像素截图、GPU 画面 |
 | `tests/test_harness_runner.py` | 一键 Runner 的动态 DAG 执行、Report 与 Trace | 长期运行中的容灾和断电持久性 |
+| `tests/test_record_stream.py` | 单调 seq、独立执行身份、嵌套 Agent 归属、HTTP 游标/断流/轮换/旧日志、Host IPC control request_id 与敏感数据剔除 | 第三方模型原生 token 和 tool-call 帧尚未实现 |
+| `tests/test_capabilities.py` | Host/LayerFS 显式能力矩阵、typed rejection、执行前要求、无副作用探测 | 真实 Docker/FUSE/cgroup 是否可用需实机验证 |
 | `tests/test_plan_lint.py` | 所有执行计划 JSON、循环/越权/重复/缺失依赖、只读 doctor、静态 CLI | 不启动真实 LayerFS Docker |
 | `tests/test_docs.py` | 内部 Markdown 相对链接、配置样例、CLI 帮助命令存在性 | 外部网络链接存活性 |
 | `.github/workflows/agentos-harness.yml` | Ubuntu + openEuler 运行上述单元/集成和 Host Demo | openEuler 裸机内核能力、委派的真实 cgroup |

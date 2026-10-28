@@ -23,7 +23,7 @@
 - [HTTP API 参考](api-reference.md) · [OpenAPI 3.1](openapi.json) · [事件/Trace 格式](trace-format.md)
 - [能力成熟度矩阵](capabilities.md) · [实验复现与结果记录模板](reproducibility.md)
 - [可执行教程目录](tutorials/README.md)：[Host 动态 DAG](tutorials/01-host-dynamic-dag.md)、[SSE/GPUI](tutorials/02-event-driven-ui.md)、[LayerFS/FC](tutorials/03-layerfs-fc.md)
-- [架构决策记录 ADR](adr/README.md)
+- [架构决策记录 ADR](adr/README.md)（包含 [ADR-0005：有序控制与证据](adr/0005-ordered-control-and-evidence.md)）
 - [贡献与 PR 检查清单](../CONTRIBUTING.md)
 
 补充：[版本变更日志](../CHANGELOG.md) · [演示/发布证据清单](release-checklist.md)。

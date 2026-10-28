@@ -108,6 +108,10 @@ Docker 后端**没有**宿主 IPC Socket。Worker 写入 `AGENTOS_DECLARATIONS` 
 
 LayerFS 子任务的文件基线来自父 Agent Commit，多个父分支由 LayerFS 合并；两种后端的“依赖准入”一致，但文件系统、IPC 和内核配额**不等价**。详见 [LayerFS + FC](layerfs-fc.md)。
 
+## 控制审计（Host）
+
+Broker 在认证后记录 `control_requested` / `control_handled`，用 `request_id` 关联。请求与处理结果采用同一 Supervisor `seq` 序列；记录不包含 token、message payload、SQLite Context 值。处理成功只证明 Broker 算出了结果，**不证明**写回已到达客户端、消息已被另一个 Agent 消费。不得把 IPC 视为严格的 exactly-once 交付机制。详见 [OAR 设计取舍](oar-comparison.md) 与 [Trace 格式](trace-format.md)。
+
 ## 7. 执行与报告
 
 ```bash

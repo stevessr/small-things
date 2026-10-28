@@ -80,7 +80,7 @@ python3 -m agentos.sessions list --root .agentos/runs
 ## 深入文档
 
 - [贡献指南](CONTRIBUTING.md) · [API/事件规范](docs/api-reference.md) · [机器可读 OpenAPI](docs/openapi.json)
-- [完整 Trace 语义](docs/trace-format.md) · [能力成熟度](docs/capabilities.md)
+- [完整 Trace 语义](docs/trace-format.md) · [能力成熟度](docs/capabilities.md) · [OAR 设计对照](docs/oar-comparison.md)
 - [可执行教程](docs/tutorials/README.md) · [ADR](docs/adr/README.md) · [实验复现模板](docs/reproducibility.md)
 
 ## 版本与验收
