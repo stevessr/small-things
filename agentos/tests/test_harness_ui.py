@@ -180,6 +180,65 @@ class HarnessHttpTests(unittest.TestCase):
         self.assertEqual(detail["task"]["resource_metrics"]["memory_peak"], 123)
         self.assertEqual(detail["spec"]["kind"], "tool")
 
+    def test_paginated_summary_preserves_global_counts_and_order(self):
+        tasks = {
+            f"task_{n:03d}": {
+                "id": f"task_{n:03d}", "status": "succeeded" if n % 2 else "failed",
+                "stdout": "x" * 200, "stderr": "private", "resource_metrics": {"cpu": n}
+            } for n in range(135)
+        }
+        dag = {
+            key: {"deps": [] if i == 0 else ["task_000"], "kind": "tool"}
+            for i, key in enumerate(tasks)
+        }
+        self.report.write_text(json.dumps({
+            "tasks": tasks, "dag": dag, "declared_by": {"task_050": "task_000"}
+        }))
+        for offset, expected in [(0, 40), (40, 40), (80, 40), (120, 15), (135, 0)]:
+            with self.subTest(offset=offset):
+                with urlopen(self.host + f"/api/state?view=summary&offset={offset}&limit=40",
+                             timeout=5) as response:
+                    state = json.load(response)
+                self.assertEqual(state["total"], 135)
+                self.assertEqual(len(state["tasks"]), expected)
+                self.assertEqual(set(state["dag"]), set(state["tasks"]))
+                self.assertEqual(state["counts"]["failed"], 68)
+                self.assertEqual(state["counts"]["succeeded"], 67)
+                self.assertEqual(state["events"], [])
+                for item in state["tasks"].values():
+                    self.assertNotIn("stdout", item)
+                    self.assertNotIn("stderr", item)
+                    self.assertNotIn("resource_metrics", item)
+        with urlopen(self.host + "/api/state?view=summary&offset=50&limit=1",
+                     timeout=5) as response:
+            page = json.load(response)
+        self.assertEqual(list(page["tasks"]), ["task_050"])
+        self.assertEqual(page["declared_by"], {"task_050": "task_000"})
+        with urlopen(self.host + "/api/state?view=summary", timeout=5) as response:
+            legacy = json.load(response)
+        self.assertEqual(len(legacy["tasks"]), 135)
+
+    def test_pagination_query_rejects_bad_offsets_and_limits(self):
+        for suffix in (
+            "offset=-1&limit=40", "offset=0&limit=0",
+            "offset=0&limit=41", "offset=10001&limit=1",
+            "offset=01foo&limit=40", "offset=0&limit=x",
+            "offset=0", "limit=40", "offset=0&offset=40&limit=20",
+            "offset=0&limit=20&limit=2",
+        ):
+            with self.subTest(query=suffix), self.assertRaises(HTTPError) as error:
+                urlopen(self.host + "/api/state?view=summary&" + suffix, timeout=5)
+            self.assertEqual(error.exception.code, 400)
+        with self.assertRaises(HTTPError) as error:
+            urlopen(self.host + "/api/state?offset=0&limit=10", timeout=5)
+        self.assertEqual(error.exception.code, 400)
+
+    def test_report_error_is_500_even_when_paginated(self):
+        self.report.write_bytes(b" " * (MAX_REPORT + 1))
+        with self.assertRaises(HTTPError) as error:
+            urlopen(self.host + "/api/state?view=summary&offset=0&limit=40", timeout=5)
+        self.assertEqual(error.exception.code, 500)
+
     def test_lazy_detail_rejects_unregistered_task(self):
         for name in ["nonexistent", "..", "invalid id"]:
             with self.assertRaises(HTTPError):
