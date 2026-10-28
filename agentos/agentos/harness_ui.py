@@ -10,6 +10,7 @@ import argparse
 import json
 import os
 import re
+import threading
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -49,6 +50,9 @@ def paginate_summary(state: dict, query: dict[str, list[str]]) -> dict:
     receive the full summary. Task IDs are sorted, so independent clients see
     consistent deterministic pages for the same snapshot.
     """
+    # Cached source snapshots are immutable to readers. Projection may replace
+    # top-level maps, but must not modify the shared object.
+    state = state.copy()
     page_requested = "offset" in query or "limit" in query
     if not page_requested:
         state["events"] = []
@@ -194,8 +198,54 @@ def build_state(report: dict, events: list[dict]) -> dict:
     }
 
 
+class SnapshotCache:
+    """Per-server snapshot cache. No polling, no background refresh worker.
+
+    Multiple GPUI/Web clients requesting the same version share a parsed
+    snapshot. Stat signatures also detect changes when inotify is unavailable.
+    """
+
+    def __init__(self, report: Path | None, trace: Path | None,
+                 changes: ChangeWatch):
+        self.report, self.trace, self.changes = report, trace, changes
+        self._lock = threading.Lock()
+        self._signature_value: tuple | None = None
+        self._state: dict | None = None
+
+    @staticmethod
+    def _file_key(path: Path | None) -> tuple | None:
+        if path is None:
+            return None
+        try:
+            info = path.stat()
+            return (info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+        except FileNotFoundError:
+            return None
+
+    def _signature(self) -> tuple:
+        return (self.changes.version, self._file_key(self.report),
+                self._file_key(self.trace))
+
+    def get(self) -> dict:
+        with self._lock:
+            key = self._signature()
+            if key == self._signature_value and self._state is not None:
+                return self._state
+            state = build_state(read_report(self.report), read_trace(self.trace))
+            # Catch a file swap or append that races the first parse. If the
+            # file keeps changing, the next request will detect the mismatch.
+            next_key = self._signature()
+            if next_key != key:
+                state = build_state(read_report(self.report), read_trace(self.trace))
+                key = next_key
+            self._state, self._signature_value = state, key
+            return state
+
+
 def create_handler(report_path: Path | None, trace_path: Path | None,
                    changes: ChangeWatch):
+    cache = SnapshotCache(report_path, trace_path, changes)
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "AgentOS-HarnessUI/0.1"
 
@@ -228,7 +278,7 @@ def create_handler(report_path: Path | None, trace_path: Path | None,
                 self._changes()
             elif path == "/api/state":
                 try:
-                    data = build_state(read_report(report_path), read_trace(trace_path))
+                    data = cache.get()
                     query = parse_qs(urlsplit(self.path).query)
                     if query.get("view") == ["summary"]:
                         data = paginate_summary(data, query)
