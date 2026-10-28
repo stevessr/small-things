@@ -254,6 +254,8 @@ class HarnessHttpTests(unittest.TestCase):
             "offset=01foo&limit=40", "offset=0&limit=x",
             "offset=0", "limit=40", "offset=0&offset=40&limit=20",
             "offset=0&limit=20&limit=2",
+            "offset=" + "9" * 5000 + "&limit=40",
+            "offset=0&limit=" + "9" * 5000,
         ):
             with self.subTest(query=suffix), self.assertRaises(HTTPError) as error:
                 urlopen(self.host + "/api/state?view=summary&" + suffix, timeout=5)
