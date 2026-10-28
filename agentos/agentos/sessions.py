@@ -34,6 +34,10 @@ def inspect_run(directory: Path) -> dict:
               "filesystem": data.get("filesystem"),
               "integrity": "incomplete" if data.get("status") == "running" else "ok",
               "errors": []}
+    # An active or crash-abandoned run has no terminal report/digests yet.
+    # It is incomplete, not proven corrupt. Do not certify it as valid.
+    if result["integrity"] == "incomplete":
+        return result
     for label in ("report", "trace"):
         # Never follow paths supplied inside a manifest: only fixed local files.
         path = directory / (label + (".json" if label == "report" else ".jsonl"))
@@ -72,6 +76,8 @@ def list_runs(root: Path) -> list[dict]:
         if not directory.is_dir() or directory.is_symlink():
             continue
         try:
+            if (directory / "manifest.json").is_symlink():
+                continue
             meta = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
             if not isinstance(meta, dict) or meta.get("run_id") != directory.name:
                 continue
