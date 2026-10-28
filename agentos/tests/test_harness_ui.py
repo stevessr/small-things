@@ -108,6 +108,12 @@ class HarnessHttpTests(unittest.TestCase):
         cls.thread.join(timeout=5)
         cls.temp.cleanup()
 
+    def setUp(self):
+        # HTTP cases share a server, but must not share test-created reports.
+        self.report.unlink(missing_ok=True)
+        self.trace.write_text(json.dumps({"event": "admitted",
+                                          "task": "start", "deps": []}) + "\n")
+
     def test_assets_health_and_headers(self):
         for path, mime in [("/", "text/html"), ("/app.js", "text/javascript"),
                            ("/styles.css", "text/css"), ("/healthz", "application/json")]:
