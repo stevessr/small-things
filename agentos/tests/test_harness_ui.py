@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from importlib.resources import files
 import tempfile
 import threading
 import time
@@ -71,6 +72,12 @@ class HarnessModelTests(unittest.TestCase):
             path.write_bytes(b" " * (MAX_REPORT + 1))
             with self.assertRaisesRegex(ValueError, "exceeds"):
                 read_report(path)
+
+    def test_packaged_assets_are_importable(self):
+        assets = files("agentos").joinpath("ui")
+        self.assertIn("<title>AgentOS", assets.joinpath("index.html").read_text())
+        self.assertIn("function renderGraph", assets.joinpath("app.js").read_text())
+        self.assertIn(".sidebar", assets.joinpath("styles.css").read_text())
 
     def test_no_files_is_empty_state(self):
         self.assertEqual(read_report(None), {})

@@ -1,6 +1,6 @@
 [project]
 name = "agentos-harness"
-version = "0.1.0"
+version = "0.4.0"
 description = "Linux/openEuler multi-agent execution harness for OS competition research"
 requires-python = ">=3.11"
 dependencies = []
@@ -11,3 +11,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["agentos"]
+
+[tool.setuptools.package-data]
+agentos = ["ui/*.html", "ui/*.css", "ui/*.js", "*.mjs"]

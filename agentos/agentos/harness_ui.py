@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 MAX_REPORT = 8 * 1024 * 1024
 MAX_TRACE = 2 * 1024 * 1024
 MAX_EVENTS = 4000
-UI_DIR = Path(__file__).resolve().parent.parent / "ui"
+UI_DIR = Path(__file__).resolve().parent / "ui"
 ROUTES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
