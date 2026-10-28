@@ -21,7 +21,8 @@ python3 -m agentos.harness_run examples/agent-declarations.json \
 | GET | `/`、`/app.js`、`/styles.css` | UI 静态资源 | 只读 |
 | GET | `/healthz` | `{"ok":true}` | 只读 |
 | GET | `/api/state` | `schema, tasks, dag, declared_by, events, counts, total, isolation, budget, context, updated_utc` | 只读快照 |
-| GET | `/api/state?view=summary` | 同 schema，`events=[]`，任务仅有限字段（状态/耗时/次数/FC ID） | GPUI 轻量摘要 |
+| GET | `/api/state?view=summary` | 同 schema，`events=[]`，任务仅有限字段（状态/耗时/次数/FC ID） | 向后兼容的全部摘要 |
+| GET | `/api/state?view=summary&offset=0&limit=40` | 按任务 ID 排序后最多 40 项，保留全局 `total/counts`，仅返回页内 DAG 与声明者 | GPUI 服务端分页 |
 | GET | `/api/task/<id>` | `{"task":{...},"spec":{...}}`（完整 stdout/stderr、resource_metrics） | 选择任务后加载 |
 | GET | `/api/changes` | `text/event-stream` 的版本事件 | 监听，不更改状态 |
 | POST | 任意路径 | 405 | 禁止写操作 |
@@ -72,7 +73,7 @@ sequenceDiagram
 - SSE **连接后立即发送版本**，之后只在监听的报告/Trace 文件发生变化时推送更新。
 - SSE 每约 20 秒发送 `: heartbeat` 注释保持 TCP 长连接；客户端不将心跳视为刷新。
 - Web UI 合并高频事件请求，GPUI 用单独线程等待通知，在 UI 线程中更新模型；断线才按重连间隔再连接（并非固定频率轮询）。
-- GPUI 初次只加载摘要（不含长日志），选中 Agent 后才请求 `/api/task/<id>`，状态变更时刷新已选任务；每页最多 40 个可见任务组件。
+- GPUI 请求 `view=summary&offset=N&limit=40`，服务端只传当前 40 个任务、关联 DAG 和声明关系；`total/counts` 保留全局统计。选中 Agent 后才请求 `/api/task/<id>`；分页和 SSE 通知才触发页面请求。不需要下载所有任务再在 GPUI 客户端裁剪。
 - 浏览器 DAG 图最多显示前 **160 个任务节点**；完整任务仍在报告与表格中。页面没有对 10,000 任务进行 GPU 加速的性能保证。
 - GPUI 初始尺寸为 1140 × 760 **逻辑像素请求**，调用 GPUI `Bounds::centered` 按当前屏幕可见范围裁剪，窗口当前设置为不可任意拉伸；不要将逻辑像素等同于高 DPI 物理像素。
 

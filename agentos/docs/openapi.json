@@ -48,7 +48,7 @@
     },
     "/api/state": {
       "get": {
-        "summary": "Full runtime state, or lightweight summary",
+        "summary": "Full, unpaginated summary or bounded summary page",
         "parameters": [
           {
             "name": "view",
@@ -61,11 +61,33 @@
               ]
             },
             "description": "summary removes stdout/stderr/resource_metrics from tasks and sets events=[]"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "description": "Requires view=summary and limit. Zero-based index of the first task in lexicographically sorted task IDs."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 40
+            },
+            "description": "Requires view=summary and offset. Caps response to this many tasks and corresponding DAG entries."
           }
         ],
         "responses": {
           "200": {
-            "description": "Full Snapshot, or Summary Snapshot when view=summary",
+            "description": "Full state or summary projection; offset+limit limits tasks/dag/declared_by only, total/counts remain global",
             "content": {
               "application/json": {
                 "schema": {
@@ -80,6 +102,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid or out-of-range pagination query"
           },
           "403": {
             "description": "Host header did not match 127.0.0.1:port"
@@ -558,7 +583,7 @@
           "updated_utc"
         ],
         "additionalProperties": true,
-        "description": "Transfer-optimized projection of Snapshot: events=[], Task outputs and resource_metrics removed. It overlaps structurally with Snapshot; use anyOf, not oneOf."
+        "description": "When offset+limit are supplied, tasks/dag/declared_by include only the requested sorted page (max 40); total and counts still cover all tasks. Events=[] and outputs omitted. Without pagination, all task summaries are returned."
       },
       "Error": {
         "type": "object",

@@ -117,6 +117,15 @@ class DocumentationContractTests(unittest.TestCase):
         for field in state["counts"]:
             self.assertIn(field, schemas["Snapshot"]["properties"]["counts"]["properties"])
 
+    def test_openapi_page_contract_matches_server_bounds(self):
+        from agentos.harness_ui import MAX_PAGE_OFFSET, MAX_PAGE_SIZE
+
+        api = json.loads((ROOT / "docs" / "openapi.json").read_text())
+        query = {p["name"]: p for p in api["paths"]["/api/state"]["get"]["parameters"]}
+        self.assertEqual(query["limit"]["schema"]["maximum"], MAX_PAGE_SIZE)
+        self.assertEqual(query["offset"]["schema"]["maximum"], MAX_PAGE_OFFSET)
+        self.assertIn("400", api["paths"]["/api/state"]["get"]["responses"])
+
     def test_openapi_event_catalog_is_exactly_code_emissions(self):
         api = json.loads((ROOT / "docs" / "openapi.json").read_text())
         declared = set(api["components"]["schemas"]["Event"]["properties"]["event"]["enum"])

@@ -31,7 +31,10 @@ For a fast headless smoke test of the shared read-only protocol:
 cargo test --no-default-features
 ```
 
-The native task list renders at most **40 entries per page**; full stdout/stderr
+The native task list requests **a 40-entry server-side page**, not an unbounded
+task map. Every SSE notification or manual/page navigation loads only the
+visible page, with stale responses discarded if the user has already switched
+pages. Global task count and status totals are retained. Full stdout/stderr
 and resource metrics are fetched **only when an Agent is selected**; the local backend currently still parses the full report to produce each summary. The initial
 window is clamped by GPUI to the current display's visible bounds; it does
 not request a fixed resolution larger than the screen. SSE reconnects only

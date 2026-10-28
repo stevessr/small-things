@@ -38,7 +38,7 @@ python3 -m agentos.cli examples/demo.json \
 | Agent 通信 | Host Unix Socket、跨租户拒绝、有界队列、SQLite/zlib 文本 Context |
 | LayerFS | `@layerfs/agent` SDK 桥接、独立 Workspace、Commit 和 FC 非破坏性 fork 回退 |
 | Web Harness UI | 本地只读 DAG/日志/时间线/FC/资源摘要，inotify→SSE 事件驱动 |
-| GPUI 原生 | Wayland/X11 UI，SSE 推送、每页最多 40 项、按需日志、显示器尺寸裁剪 |
+| GPUI 原生 | Wayland/X11 UI，SSE 推送、服务端每页最多 40 项、按需日志、显示器尺寸裁剪 |
 | 验证 | Host/LayerFS 模拟协议测试、Ubuntu/openEuler CI、独立 GPUI Rust/编译 CI |
 
 LayerFS 的预算字段尚未映射为 Docker cgroup 真实配额，Host IPC 未透传给 LayerFS 容器；真实 SDK+Docker/FUSE 实机集成测试还未完成。GPUI 目前只验证 Linux 编译和协议逻辑，不代表真实 Vulkan 图形会话已经测通。
