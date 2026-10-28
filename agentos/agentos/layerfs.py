@@ -71,6 +71,13 @@ class LayerFSClient:
                                 "timeout_ms": timeout_ms},
                                timeout_s=timeout_ms / 1000 + 30)
 
+    async def fc_history(self, branch: str) -> dict:
+        return await self.call({"action": "fc_history", "branch": branch})
+
+    async def fc_rewind(self, branch: str, checkpoint: str) -> dict:
+        return await self.call({"action": "fc_rewind", "branch": branch,
+                                "checkpoint": checkpoint})
+
     async def fc_restore(self, branch: str, checkpoint: str,
                          paths: list[str]) -> dict:
         return await self.call({"action": "fc", "branch": branch,

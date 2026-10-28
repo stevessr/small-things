@@ -1,4 +1,4 @@
-# LayerFS v1.1.0 + File Checkpoints (FC)
+# LayerFS v1.1.0 + Function Calling Checkpoints (FC)
 
 ## 实现
 
@@ -13,7 +13,7 @@ LayerFS 的内部 SQLite Store。
 - 成功：提交 Workspace，生成可供后继 Agent 使用的 Branch + Commit ID；
   之后卸载并清理 Sandbox。
 - 失败：不提交，丢弃 Workspace 变更；其它不依赖此任务的 Agent 照常执行。
-- FC：从指定 Commit/Layer 读取被选文件内容，在**当前 Branch 的新 fork**
+- FC（Function Calling）：一个 DAG 工具任务对应一次 FC 检查点（提交消息 `FC: task_id`）。\n  可查询调用历史，以固定 Commit ID 派生新 Branch、回退整个工具调用之后的文件树。\n  也可从指定 Commit/Layer 读取被选文件内容，在**当前 Branch 的新 fork**
   上以单次原子 `fs.apply` 恢复；原 Branch 保持完整，其他文件不变。
 - 冲突：交给 LayerFS 拒绝；不通过强制覆盖隐藏不同 Agent 的冲突。
 - 超时或桥接器被中断：标记未知状态，不盲目重新执行有副作用的操作。
@@ -49,13 +49,29 @@ python3 -m agentos.cli examples/layerfs-demo.json --filesystem layerfs \
 `@layerfs/agent`。执行上下文来自已 Init 的 LayerFS 项目，不从本地
 GitHub 分支偷偷复制文件。
 
-## FC 文件级恢复
+## FC 调用级检查点与文件级恢复
+
+```bash
+# 查看一个 Agent Branch 上每次工具调用对应的 Commit
+python3 -m agentos.layerfs_fc --mode history --branch ag-agent-abc123
+
+# 从某次 Function Call 完成时的 Commit 创建新的回退分支
+python3 -m agentos.layerfs_fc --mode rewind \\
+  --branch ag-agent-abc123 --checkpoint COMMIT_ID
+```
+
+FC 回退只管理 LayerFS 文件系统历史，**不能逆转外部 API 请求、数据库
+提交、邮件发送或模型服务已执行的其他副作用**。需要上层补偿事务/
+幂等键。当前工具调用的粒度为一个 DAG Task；单个 Task 中执行多个
+shell 命令会共用同一个检查点。
+
+### 按选定文件回退
 
 检查点应填写 `fs.read` 可访问的**固定 Commit/Layer ID**，而非正在
 变化的 Branch 名称：
 
 ```bash
-python3 -m agentos.layerfs_fc \
+python3 -m agentos.layerfs_fc --mode files \
   --branch ag-agent-abc123 \
   --checkpoint COMMIT_ID \
   --path /src/main.py \

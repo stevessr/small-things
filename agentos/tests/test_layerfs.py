@@ -34,6 +34,15 @@ class LayerFSBridgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["kind"], "Initialized")
         self.assertEqual(result["project"], "agentos-test")
 
+    async def test_fc_history_and_call_level_rewind(self):
+        client = LayerFSClient()
+        history = await client.fc_history("working")
+        self.assertEqual(history["items"][0]["message"], "FC: tool-two")
+        rewind = await client.fc_rewind("working", "c1")
+        self.assertEqual(rewind["checkpoint"], "c1")
+        self.assertNotEqual(rewind["branch"], "working")
+        self.assertEqual(rewind["forked"]["from"], "c1")
+
     async def test_fc_selective_restore_is_new_branch_and_atomic(self):
         result = await LayerFSClient().fc_restore(
             "working", "checkpoint", ["/a.txt", "/gone.txt"])

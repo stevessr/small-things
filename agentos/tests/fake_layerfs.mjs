@@ -14,6 +14,10 @@ export class LayerFS {
     return new LayerFS();
   }
   branch = {
+    list_commits: async branch => ({ items: [
+      { id: "c2", message: "FC: tool-two" },
+      { id: "c1", message: "FC: tool-one" }
+    ], hasMore: false, branch }),
     fork: async (name, from) => ({ kind: "Forked", branch: name, from }),
     merge: async (a, b, name) => ({ kind: "Merged", branch: name, a, b })
   };

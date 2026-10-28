@@ -59,6 +59,21 @@ async function statOrNull(fs, ref, path) {
   }
 }
 
+async function fcHistory(lf, p) {
+  assert(validName.test(p.branch), "invalid FC branch");
+  return await lf.branch.list_commits(p.branch, 100, 0);
+}
+
+async function fcRewind(lf, p) {
+  assert(validName.test(p.branch) && typeof p.checkpoint === "string" &&
+    p.checkpoint.length > 0, "invalid FC branch or checkpoint");
+  // Non-destructive: HEAD moves nowhere. Caller can inspect/rebase new fork.
+  const branch = safeBranch("rewind");
+  const forked = await lf.branch.fork(branch, p.checkpoint);
+  return { branch, based_on: p.branch, checkpoint: p.checkpoint, forked,
+           warning: "External API/database side effects are not rolled back" };
+}
+
 async function fcRestore(lf, p) {
   assert(validName.test(p.branch) && typeof p.checkpoint === "string" &&
     p.checkpoint.length > 0, "invalid FC branch or checkpoint");
@@ -124,7 +139,8 @@ async function runAgent(lf, p) {
     const exit = executed.exitCode;
     assert(Number.isInteger(exit), "LayerFS returned no exitCode");
     const good = exit === 0;
-    const committed = good ? await lf.workspace.commit(workspace, "AgentOS success: " + p.id) : null;
+    // One DAG tool task is one Function Calling boundary with its own history commit.
+    const committed = good ? await lf.workspace.commit(workspace, "FC: " + p.id) : null;
     value = { exit_code: exit,
       stdout: (executed.stdout ?? "").slice(0, MAX_OUTPUT),
       stderr: (executed.stderr ?? "").slice(0, MAX_OUTPUT),
@@ -162,7 +178,7 @@ async function readInput() {
 
 try {
   const input = await readInput();
-  assert(["run", "fc", "init"].includes(input.action), "unsupported LayerFS bridge action");
+  assert(["run", "fc", "fc_history", "fc_rewind", "init"].includes(input.action), "unsupported LayerFS bridge action");
   const modulePath = process.env.LAYERFS_AGENT_MODULE;
   // Local SDK checkout can be linked with node_modules; no npm-registry dependency.
   const pkg = modulePath ? await import(pathToFileURL(modulePath).href) : await import("@layerfs/agent");
@@ -184,8 +200,10 @@ try {
   } else {
     const layerfs = await pkg.LayerFS.open(project);
     try {
-      const value = input.action === "run"
-        ? await runAgent(layerfs, input) : await fcRestore(layerfs, input);
+      const value = input.action === "run" ? await runAgent(layerfs, input)
+        : input.action === "fc_history" ? await fcHistory(layerfs, input)
+        : input.action === "fc_rewind" ? await fcRewind(layerfs, input)
+        : await fcRestore(layerfs, input);
       process.stdout.write(JSON.stringify({ ok: true, value }) + "\n");
     } finally {
       await layerfs.close();
