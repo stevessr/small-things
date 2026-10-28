@@ -161,7 +161,7 @@ class HarnessRunnerTests(unittest.TestCase):
             trace.write_text("".join(json.dumps({
                 "seq": seq, "session_id": session_id, "event": "admitted",
                 "time_ns": seq + 1, "agent_path": [], "task": "a"
-            }) + "\\n" for seq in range(3)))
+            }) + "\n" for seq in range(3)))
             with trace.open("a") as stream:
                 stream.write('{"seq":3,"session_id":')
             manifest_path = session / "manifest.json"
