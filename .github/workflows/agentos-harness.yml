@@ -26,6 +26,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: End-to-end multi-Agent scenario
         run: python -m agentos.cli examples/demo.json --report /tmp/agentos-report.json --trace /tmp/agentos-trace.jsonl
+      - name: Synthetic microbenchmark smoke test
+        run: python -m bench.benchmark --tasks 6 --parallel 3 --sleep 0.05 --trials 2
 
   openeuler:
     runs-on: ubuntu-latest
