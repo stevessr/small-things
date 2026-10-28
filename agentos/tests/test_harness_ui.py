@@ -1,0 +1,141 @@
+"""Harness UI: state synthesis, robust tail parsing, HTTP security and live stream."""
+from __future__ import annotations
+
+import json
+import tempfile
+import threading
+import time
+import unittest
+from pathlib import Path
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+from agentos.harness_ui import (MAX_REPORT, build_state, read_report, read_trace, start_server)
+
+
+class HarnessModelTests(unittest.TestCase):
+    def test_legacy_report_and_trace_merge(self):
+        events = [
+            {"event": "admitted", "time_ns": 2, "task": "root",
+             "kind": "model", "deps": [], "tenant": "a"},
+            {"event": "declared", "time_ns": 3, "task": "child", "parent": "root",
+             "deps": ["root"], "kind": "tool"},
+            {"event": "started", "time_ns": 4, "task": "root"},
+            {"event": "finished", "time_ns": 8, "task": "root", "status": "succeeded",
+             "elapsed_s": 0.3},
+            {"event": "started", "time_ns": 9, "task": "child"},
+        ]
+        state = build_state({}, events)
+        self.assertEqual(state["total"], 2)
+        self.assertEqual(state["counts"]["running"], 1)
+        self.assertEqual(state["counts"]["succeeded"], 1)
+        self.assertEqual(state["dag"]["child"]["deps"], ["root"])
+        self.assertEqual(state["declared_by"]["child"], "root")
+        self.assertEqual(state["tasks"]["child"]["status"], "running")
+
+        report = {"tasks": {"child": {"id": "child", "status": "failed", "stderr": "boom"}},
+                  "dag": {"child": {"deps": ["root"], "tenant": "a"}},
+                  "isolation": "layerfs"}
+        final = build_state(report, events)
+        self.assertEqual(final["counts"]["failed"], 1)
+        self.assertEqual(final["counts"]["running"], 0)
+        self.assertEqual(final["isolation"], "layerfs")
+        self.assertEqual(final["tasks"]["child"]["stderr"], "boom")
+
+    def test_trace_skips_malformed_line_and_invalid_tasks(self):
+        with tempfile.TemporaryDirectory() as dir:
+            trace = Path(dir) / "trace.jsonl"
+            trace.write_bytes(b'{"event":"admitted","task":"ok"}\n'
+                              b'{"event":"admitted","task":"invalid id"}\n'
+                              b'broken-partial{')
+            events = read_trace(trace)
+            self.assertEqual(len(events), 2)
+            state = build_state({}, events)
+            self.assertEqual(list(state["tasks"]), ["ok"])
+
+    def test_tail_is_bounded_and_starts_on_complete_line(self):
+        with tempfile.TemporaryDirectory() as dir:
+            trace = Path(dir) / "trace.jsonl"
+            with trace.open("w") as f:
+                for i in range(5500):
+                    f.write(json.dumps({"event": "admitted", "task": "agent", "n": i,
+                                        "padding": "z"*400}) + "\n")
+            events = read_trace(trace)
+            self.assertLessEqual(len(events), 4000)
+            self.assertEqual(events[-1]["n"], 5499)
+            self.assertGreater(events[0]["n"], 0)
+
+    def test_oversized_report_rejected(self):
+        with tempfile.TemporaryDirectory() as dir:
+            path = Path(dir) / "huge.json"
+            path.write_bytes(b" " * (MAX_REPORT + 1))
+            with self.assertRaisesRegex(ValueError, "exceeds"):
+                read_report(path)
+
+    def test_no_files_is_empty_state(self):
+        self.assertEqual(read_report(None), {})
+        self.assertEqual(read_trace(None), [])
+        self.assertEqual(build_state({}, [])["total"], 0)
+
+
+class HarnessHttpTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.temp = tempfile.TemporaryDirectory()
+        cls.report = Path(cls.temp.name) / "report.json"
+        cls.trace = Path(cls.temp.name) / "trace.jsonl"
+        cls.trace.write_text(json.dumps({"event": "admitted", "task": "start",
+                                         "deps": []}) + "\n")
+        cls.server = start_server(cls.report, cls.trace, port=0)
+        cls.host = "http://127.0.0.1:" + str(cls.server.server_port)
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join(timeout=5)
+        cls.temp.cleanup()
+
+    def test_assets_health_and_headers(self):
+        for path, mime in [("/", "text/html"), ("/app.js", "text/javascript"),
+                           ("/styles.css", "text/css"), ("/healthz", "application/json")]:
+            with urlopen(self.host + path, timeout=5) as response:
+                self.assertEqual(response.status, 200)
+                self.assertIn(mime, response.headers["Content-Type"])
+                self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+                self.assertIn("script-src 'self'", response.headers["Content-Security-Policy"])
+                self.assertTrue(response.read())
+
+    def test_live_updates_without_server_restart(self):
+        with urlopen(self.host + "/api/state", timeout=5) as response:
+            initial = json.load(response)
+        self.assertEqual(initial["counts"]["pending"], 1)
+        with self.trace.open("a") as file:
+            file.write(json.dumps({"event": "started", "task": "start", "time_ns": 5}) + "\n")
+        with urlopen(self.host + "/api/state", timeout=5) as response:
+            next_state = json.load(response)
+        self.assertEqual(next_state["counts"]["running"], 1)
+        self.report.write_text(json.dumps({"tasks": {
+            "start": {"id": "start", "status": "succeeded", "filesystem_commit": "c1"}
+        }, "dag": {"start": {"deps": []}}}))
+        with urlopen(self.host + "/api/state", timeout=5) as response:
+            final = json.load(response)
+        self.assertEqual(final["counts"]["succeeded"], 1)
+        self.assertEqual(final["tasks"]["start"]["filesystem_commit"], "c1")
+
+    def test_read_only_and_unknown_paths(self):
+        for path in ("/../../etc/passwd", "/nonexistent", "/api/commands",
+                     "/agentos/README.md"):
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(self.host + path, timeout=5)
+            self.assertEqual(caught.exception.code, 404)
+        request = Request(self.host + "/api/state", method="POST", data=b"{}")
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(request, timeout=5)
+        self.assertEqual(caught.exception.code, 405)
+
+
+if __name__ == "__main__":
+    unittest.main()

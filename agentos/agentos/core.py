@@ -71,7 +71,9 @@ class AgentRuntime:
                 raise ValueError("cross-tenant dependency denied")
         self.tasks[task.id] = task
         self.pending.add(task.id)
-        self._event("admitted", task=task.id, tenant=task.tenant, kind=task.kind)
+        self._event("admitted", task=task.id, tenant=task.tenant, kind=task.kind,
+                    deps=list(task.deps), priority=task.priority,
+                    cpu_units=task.cpu_units, memory_mib=task.memory_mib)
 
     def _validate_graph(self, tasks: dict[str, AgentSpec] | None = None) -> None:
         """Validate DAG in O(V+E), without recursive call-stack exhaustion."""
@@ -148,7 +150,9 @@ class AgentRuntime:
             self.declared_by[task.id] = parent
             self._event("declared", task=task.id, parent=parent,
                         tenant=task.tenant, deps=list(task.deps))
-            self._event("admitted", task=task.id, tenant=task.tenant, kind=task.kind)
+            self._event("admitted", task=task.id, tenant=task.tenant, kind=task.kind,
+                    deps=list(task.deps), priority=task.priority,
+                    cpu_units=task.cpu_units, memory_mib=task.memory_mib)
         return list(batch)
 
     async def _after_success(self, spec: AgentSpec, result: AgentResult) -> None:

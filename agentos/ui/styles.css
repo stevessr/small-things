@@ -104,3 +104,5 @@ td:first-child{color:#e4eeff;font-weight:650}
 @media(max-width:1050px){.workspace-grid{grid-template-columns:1fr}.details-body{height:auto;min-height:180px;max-height:500px}.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:750px){.shell{display:block}.sidebar{position:relative;width:100%;height:auto;padding:16px}.brand{margin-bottom:15px}.navigation{flex-direction:row;overflow-x:auto}.nav-caption,.sidebar-bottom{display:none}.nav-link{white-space:nowrap;font-size:11px}.topbar{padding:0 18px;height:55px}.content{padding:25px 16px}.page-title{align-items:start}.run-summary{display:none}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.legend{display:none}.graph-surface{height:310px}.footer{flex-wrap:wrap;gap:8px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+[hidden]{display:none!important}
