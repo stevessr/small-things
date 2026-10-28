@@ -12,9 +12,12 @@ import unittest
 from pathlib import Path
 
 from agentos.plan_lint import validate_plan
+from agentos.harness_ui import ROUTES, build_state
+from agentos.models import AgentResult, Status
 
 ROOT = Path(__file__).resolve().parent.parent
-MARKDOWN = [ROOT / "README.md", ROOT / "ui-gpui" / "README.md",
+MARKDOWN = [ROOT / "README.md", ROOT / "CONTRIBUTING.md",
+            ROOT / "ui-gpui" / "README.md",
             *sorted((ROOT / "docs").glob("*.md"))]
 LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 TICK = chr(96)
@@ -77,6 +80,53 @@ class DocumentationContractTests(unittest.TestCase):
         self.assertEqual(budget_fields, set(Budget.__dataclass_fields__))
         self.assertEqual(schema["$defs"]["task"]["properties"]["retries"]["maximum"], 5)
         self.assertEqual(schema["$defs"]["budget"]["properties"]["max_tasks"]["maximum"], 10000)
+
+    def test_openapi_matches_runtime_routes_and_state(self):
+        api = json.loads((ROOT / "docs" / "openapi.json").read_text())
+        self.assertEqual(api["openapi"], "3.1.0")
+        paths = set(api["paths"])
+        self.assertEqual(paths, set(ROUTES) | {
+            "/healthz", "/api/state", "/api/task/{id}", "/api/changes"
+        })
+        self.assertTrue(all("post" not in value and "put" not in value
+                            and "delete" not in value for value in api["paths"].values()))
+        schemas = api["components"]["schemas"]
+        self.assertEqual(set(schemas["Task"]["properties"]),
+                         set(AgentResult.__dataclass_fields__))
+        enum = schemas["Task"]["properties"]["status"]["enum"]
+        self.assertEqual(set(enum), {status.value for status in Status})
+        state = build_state({}, [])
+        required = schemas["Snapshot"]["required"]
+        self.assertTrue(set(required).issubset(state))
+        self.assertEqual(state["schema"], schemas["Snapshot"]["properties"]["schema"]["const"])
+        for field in state["counts"]:
+            self.assertIn(field, schemas["Snapshot"]["properties"]["counts"]["properties"])
+
+    def test_openapi_event_catalog_is_exactly_code_emissions(self):
+        api = json.loads((ROOT / "docs" / "openapi.json").read_text())
+        declared = set(api["components"]["schemas"]["Event"]["properties"]["event"]["enum"])
+        runtime = (ROOT / "agentos" / "core.py").read_text()
+        observed = set(re.findall(r'self\._event\("([a-z_]+)"', runtime))
+        self.assertEqual(declared, observed)
+        doc = (ROOT / "docs" / "trace-format.md").read_text()
+        for event in declared:
+            self.assertIn(chr(96) + event + chr(96), doc)
+
+    def test_openapi_references_all_exist(self):
+        api = json.loads((ROOT / "docs" / "openapi.json").read_text())
+        def walk(value):
+            if isinstance(value, dict):
+                if "$ref" in value:
+                    ref = value["$ref"]
+                    self.assertTrue(ref.startswith("#/components/schemas/"), ref)
+                    self.assertIn(ref.removeprefix("#/components/schemas/"),
+                                  api["components"]["schemas"])
+                for entry in value.values():
+                    walk(entry)
+            elif isinstance(value, list):
+                for entry in value:
+                    walk(entry)
+        walk(api)
 
     def test_documented_cli_help_is_runnable_without_side_effects(self):
         for module in ("agentos.plan_lint", "agentos.doctor", "agentos.cli",
